@@ -13,7 +13,7 @@ export default function Home() {
           Next.js 16 · React 19 · Tailwind 4 · Fluent UI v9
         </p>
         <Button appearance="primary" size="large">
-          TaxiFlow Phase 0
+          TaxiFlow Phase 0 Completed
         </Button>
       </main>
     </FluentProvider>
