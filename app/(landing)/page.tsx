@@ -87,7 +87,7 @@ function PhotoCard({
   filename: string;
 }) {
   return (
-    <div className="group relative aspect-[16/10] overflow-hidden rounded-2xl border border-border/60">
+    <div className="group relative aspect-[16/10] overflow-hidden rounded-2xl border border-border/60 transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_24px_oklch(0.65_0.12_242/0.16)]">
       {/* ↓ swap this div for <Image> once photos are available */}
       <div
         className="absolute inset-0 transition-transform duration-500 group-hover:scale-105"
@@ -127,7 +127,7 @@ function PhotoCard({
 
 function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
-    <Card className="group relative overflow-hidden border-border/60 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-card">
+    <Card className="group relative overflow-hidden border-border/60 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:bg-card hover:shadow-[0_0_28px_oklch(0.65_0.12_242/0.14)]">
       <CardContent className="p-6">
         <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-muted text-primary">
           {icon}
@@ -201,6 +201,49 @@ export default function LandingPage() {
           aria-hidden="true"
         />
 
+        {/* Animated grid beams — horizontal */}
+        {([
+          { left: 40,   top: 80,  dur: "4.2s", delay: "0s"   },
+          { left: 280,  top: 200, dur: "3.6s", delay: "1.5s" },
+          { left: 560,  top: 120, dur: "5.1s", delay: "2.8s" },
+          { left: 920,  top: 320, dur: "3.9s", delay: "0.7s" },
+          { left: 1160, top: 400, dur: "4.7s", delay: "3.4s" },
+        ] as const).map((b, i) => (
+          <div
+            key={`bh-${i}`}
+            className="pointer-events-none absolute h-px w-20"
+            style={{
+              left: b.left,
+              top: b.top,
+              background: "linear-gradient(90deg, transparent, oklch(0.65 0.12 242 / 0.7), transparent)",
+              boxShadow: "0 0 6px 2px oklch(0.65 0.12 242 / 0.22)",
+              animation: `beam-right ${b.dur} linear ${b.delay} infinite`,
+            }}
+            aria-hidden="true"
+          />
+        ))}
+
+        {/* Animated grid beams — vertical */}
+        {([
+          { left: 160, top: 40,  dur: "3.4s", delay: "0.4s" },
+          { left: 320, top: 120, dur: "4.6s", delay: "2.2s" },
+          { left: 600, top: 80,  dur: "3.8s", delay: "1.1s" },
+          { left: 840, top: 40,  dur: "5.0s", delay: "3.7s" },
+        ] as const).map((b, i) => (
+          <div
+            key={`bv-${i}`}
+            className="pointer-events-none absolute w-px h-20"
+            style={{
+              left: b.left,
+              top: b.top,
+              background: "linear-gradient(180deg, transparent, oklch(0.65 0.12 242 / 0.7), transparent)",
+              boxShadow: "0 0 6px 2px oklch(0.65 0.12 242 / 0.22)",
+              animation: `beam-down ${b.dur} linear ${b.delay} infinite`,
+            }}
+            aria-hidden="true"
+          />
+        ))}
+
         <Container maxWidth="2xl" className="relative z-10">
           <div className="flex flex-col items-center gap-12 lg:flex-row lg:items-center lg:justify-between">
 
@@ -231,7 +274,7 @@ export default function LandingPage() {
               </p>
 
               <div className="mt-10 flex flex-wrap gap-4">
-                <Link href="/auth/register" className={cn(buttonVariants({ size: "lg" }), "gap-2 px-8")}>
+                <Link href="/auth/register" className={cn(buttonVariants({ size: "lg" }), "gap-2 px-8 transition-shadow duration-300 hover:shadow-[0_0_22px_oklch(0.65_0.12_242/0.45)]")}>
                   Get Started — It&apos;s Free <IconArrowRight />
                 </Link>
                 <Link href="/auth/login" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "px-8")}>
@@ -246,7 +289,7 @@ export default function LandingPage() {
 
             {/* ── Right: route preview card ────────────────────────────── */}
             <div className="w-full max-w-sm flex-shrink-0 lg:max-w-xs xl:max-w-sm">
-              <Card className="border-border/60 bg-card/70 backdrop-blur-sm" aria-label="Route preview example">
+              <Card className="border-border/60 bg-card/70 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_28px_oklch(0.65_0.12_242/0.2)]" aria-label="Route preview example">
                 <CardContent className="p-5">
                   <div className="mb-4 flex items-center justify-between">
                     <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Live Route</span>
@@ -285,7 +328,7 @@ export default function LandingPage() {
               </Card>
 
               {/* Secondary mini-card below */}
-              <Card className="mt-3 border-border/60 bg-card/50 backdrop-blur-sm">
+              <Card className="mt-3 border-border/60 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_18px_oklch(0.65_0.12_242/0.15)]">
                 <CardContent className="flex items-center justify-between p-4">
                   <div>
                     <p className="text-xs text-muted-foreground">Next departure</p>
@@ -403,7 +446,7 @@ export default function LandingPage() {
               { step: "03", title: "Arrive and pay", description: "End your trip at the destination. Pay digitally in ETB in under 10 seconds and keep your full trip history." },
             ].map(({ step, title, description }) => (
               <div key={step} className="relative flex flex-col items-center text-center md:items-start md:text-left">
-                <div className="relative z-10 mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-primary/40 bg-background text-sm font-bold text-primary">
+                <div className="relative z-10 mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-primary/40 bg-background text-sm font-bold text-primary transition-all duration-300 hover:border-primary/70 hover:shadow-[0_0_18px_oklch(0.65_0.12_242/0.4)]">
                   {step}
                 </div>
                 <h3 className="mb-2 text-lg font-semibold text-foreground">{title}</h3>
@@ -448,7 +491,7 @@ export default function LandingPage() {
                 { value: "GPS", label: "Real-time", sub: "Accurate to within metres" },
                 { value: "Free", label: "For commuters", sub: "No subscription needed" },
               ].map(({ value, label, sub }) => (
-                <Card key={label} className="border-border/60 bg-card/60">
+                <Card key={label} className="border-border/60 bg-card/60 transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_22px_oklch(0.65_0.12_242/0.14)]">
                   <CardContent className="p-5">
                     <p className="text-2xl font-bold text-primary">{value}</p>
                     <p className="text-sm font-semibold text-foreground">{label}</p>
@@ -478,7 +521,7 @@ export default function LandingPage() {
             Join the beta and help us shape the future of urban transit in Addis Ababa.
           </p>
           <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link href="/auth/register" className={cn(buttonVariants({ size: "lg" }), "gap-2 px-10")}>
+            <Link href="/auth/register" className={cn(buttonVariants({ size: "lg" }), "gap-2 px-10 transition-shadow duration-300 hover:shadow-[0_0_22px_oklch(0.65_0.12_242/0.45)]")}>
               Get Started Free <IconArrowRight />
             </Link>
             <Link href="/auth/login" className={buttonVariants({ variant: "outline", size: "lg" })}>
