@@ -32,7 +32,9 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "msw"
+      "msw",
+      "sharp",
+      "unrs-resolver"
     ]
   },
   "devDependencies": {
