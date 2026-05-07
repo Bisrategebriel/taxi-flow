@@ -1,6 +1,7 @@
 // FR-AU-05 — admin dashboard placeholder (full implementation in Phase 8)
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { signout } from '@/app/auth/signout/actions';
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
@@ -33,7 +34,7 @@ export default async function AdminDashboardPage() {
         <p className="mt-4 text-sm text-gray-600">
           Admin dashboard — full implementation coming in Phase 8.
         </p>
-        <form method="POST" action="/auth/signout" className="mt-6">
+        <form action={signout} className="mt-6">
           <button
             type="submit"
             className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"

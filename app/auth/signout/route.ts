@@ -1,9 +1,10 @@
-// FR-AU-05 — sign-out endpoint called by dashboard sign-out forms
-import { NextResponse } from 'next/server';
+// FR-AU-05 — legacy POST endpoint kept for any direct-POST callers
+// Dashboard forms now use the signout Server Action in actions.ts instead.
+import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  return NextResponse.redirect(new URL('/auth/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'));
+  return NextResponse.redirect(new URL('/auth/login', request.url), { status: 303 });
 }

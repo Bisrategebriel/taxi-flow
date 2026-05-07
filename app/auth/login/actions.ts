@@ -15,11 +15,18 @@ export async function login(_state: LoginState, formData: FormData): Promise<Log
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return { error: error.message };
   }
 
-  redirect('/auth/callback');
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', data.user.id)
+    .single();
+
+  const role = profile?.role ?? 'user';
+  redirect(role === 'admin' || role === 'super_admin' ? '/admin/dashboard' : '/dashboard');
 }
