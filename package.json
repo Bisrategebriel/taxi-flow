@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:rls": "vitest run --config vitest.rls.config.ts",
+    "db:types": "supabase gen types typescript --local --schema public > types/database.types.ts"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.73.8",

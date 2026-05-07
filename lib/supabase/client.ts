@@ -1,1 +1,10 @@
-// FR-AU-04 - Supabase clients (implemented in Phase 1)
+// FR-AU-04
+import { createBrowserClient } from '@supabase/ssr';
+import type { Database } from '@/types/database.types';
+
+export function createClient() {
+  return createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+}
