@@ -3,6 +3,7 @@ import Link from "next/link";
 import Container from "@/components/ui/Container";
 import { Card, CardContent } from "@/components/ui/Card";
 import { buttonVariants } from "@/components/ui/Button";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -162,6 +163,7 @@ export default function LandingPage() {
             </nav>
 
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <Link href="/auth/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
                 Sign In
               </Link>
@@ -181,8 +183,8 @@ export default function LandingPage() {
           className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)
+              linear-gradient(var(--grid-line-color) 1px, transparent 1px),
+              linear-gradient(90deg, var(--grid-line-color) 1px, transparent 1px)
             `,
             backgroundSize: "40px 40px",
             maskImage: "radial-gradient(ellipse 90% 90% at 50% 50%, black 40%, transparent 100%)",
