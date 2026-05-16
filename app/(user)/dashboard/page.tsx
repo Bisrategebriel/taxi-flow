@@ -10,9 +10,14 @@ import {
   TrendingUp,
   Bell,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/server";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/utils";
+
+const ThemeToggle = dynamic(() => import("@/components/ui/ThemeToggle"), {
+  ssr: false,
+  loading: () => <div className="h-9 w-9" />,
+});
 import type { LucideIcon } from "lucide-react";
 
 interface QuickAction {
