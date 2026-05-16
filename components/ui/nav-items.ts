@@ -1,5 +1,5 @@
 // FR-UD-01, FR-UD-02
-import { Home, Search, MapPin, MessageCircle, User } from "lucide-react";
+import { Home, Navigation, MapPin, MessageSquare, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -10,9 +10,9 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: Home },
-  { label: "Routes", href: "/route-search", icon: Search },
+  { label: "Routes", href: "/route-search", icon: Navigation },
   { label: "Terminals", href: "/terminals", icon: MapPin },
-  { label: "Chat", href: "/chat", icon: MessageCircle },
+  { label: "Chat", href: "/chat", icon: MessageSquare },
   { label: "Profile", href: "/profile", icon: User },
 ];
 
