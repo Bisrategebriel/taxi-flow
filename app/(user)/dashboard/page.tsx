@@ -102,7 +102,7 @@ export default async function UserDashboardPage() {
         <div>
           <p className="text-muted-foreground text-sm">Good {timeOfDay}</p>
           <h1 className="text-xl font-bold text-foreground">
-            {profile?.full_name ?? "there"}
+            {firstName}
           </h1>
         </div>
         <div className="flex items-center gap-1">
