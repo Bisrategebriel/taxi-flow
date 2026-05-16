@@ -1,5 +1,4 @@
 "use client";
-// ThemeToggle and Bell live here so they never cross an RSC boundary.
 import { Bell } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 

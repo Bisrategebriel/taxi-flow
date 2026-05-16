@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import DashboardHeader from "@/app/(user)/dashboard/_components/DashboardHeader";
+import DashboardHeader from "@/components/ui/DashboardHeader";
 import type { LucideIcon } from "lucide-react";
 
 interface QuickAction {
