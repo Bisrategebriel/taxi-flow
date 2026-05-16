@@ -39,7 +39,7 @@ function IconMoon() {
   );
 }
 
-export function ThemeToggle({ className }: { className?: string }) {
+export default function ThemeToggle({ className }: { className?: string }) {
   const isDark = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const toggle = useCallback(() => {
@@ -62,3 +62,5 @@ export function ThemeToggle({ className }: { className?: string }) {
     </button>
   );
 }
+
+export { ThemeToggle };
