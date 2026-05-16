@@ -8,11 +8,10 @@ import {
   Clock,
   Zap,
   TrendingUp,
-  Bell,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import ThemeToggle from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/utils";
+import DashboardHeader from "@/app/(user)/dashboard/_components/DashboardHeader";
 import type { LucideIcon } from "lucide-react";
 
 interface QuickAction {
@@ -98,23 +97,10 @@ export default async function UserDashboardPage() {
     <div className="flex flex-col gap-6 px-4 py-5 pb-8 max-w-lg mx-auto w-full md:max-w-none md:px-6">
 
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-muted-foreground text-sm">Good {timeOfDay}</p>
-          <h1 className="text-xl font-bold text-foreground">
-            {firstName}
-          </h1>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            aria-label="Notifications"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <Bell size={18} />
-          </button>
-          <ThemeToggle />
-        </div>
-      </div>
+      <DashboardHeader
+        greeting={`Good ${timeOfDay}`}
+        displayName={firstName}
+      />
 
       {/* Hero card */}
       <div className="relative overflow-hidden rounded-2xl bg-primary p-5">
