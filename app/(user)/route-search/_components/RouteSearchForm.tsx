@@ -5,12 +5,28 @@ import { useSearchParams } from "next/navigation";
 import { ArrowLeftRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/Button";
 import { useRecentSearches, type RecentSearch } from "@/hooks/useRecentSearches";
+import TerminalCombobox from "@/app/(user)/route-search/_components/TerminalCombobox";
 import { cn } from "@/lib/utils";
 
 interface Terminal {
   id: string;
   name: string;
   city: string;
+}
+
+function deriveRecentTerminals(recents: RecentSearch[], terminals: Terminal[]): Terminal[] {
+  const seen = new Set<string>();
+  const result: Terminal[] = [];
+  for (const r of recents) {
+    for (const [id] of [[r.fromId], [r.toId]]) {
+      if (!seen.has(id)) {
+        seen.add(id);
+        const t = terminals.find((x) => x.id === id);
+        if (t) result.push(t);
+      }
+    }
+  }
+  return result;
 }
 
 export default function RouteSearchForm({ terminals }: { terminals: Terminal[] }) {
@@ -22,6 +38,8 @@ export default function RouteSearchForm({ terminals }: { terminals: Terminal[] }
     typeof window !== "undefined" ? getAll() : []
   );
 
+  const recentTerminals = deriveRecentTerminals(recents, terminals);
+
   function handleSwap() {
     setFromId(toId);
     setToId(fromId);
@@ -32,27 +50,16 @@ export default function RouteSearchForm({ terminals }: { terminals: Terminal[] }
   return (
     <div className="space-y-6">
       <form action="/route-search/result" method="GET" className="space-y-3">
-        {/* From */}
-        <div className="space-y-1.5">
-          <label htmlFor="from" className="text-sm font-medium text-foreground">
-            From
-          </label>
-          <select
-            id="from"
-            name="from"
-            value={fromId}
-            onChange={(e) => setFromId(e.target.value)}
-            className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground
-              focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
-          >
-            <option value="">Select departure terminal</option>
-            {terminals.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <TerminalCombobox
+          id="from"
+          label="From"
+          name="from"
+          placeholder="Departure terminal…"
+          terminals={terminals}
+          recentTerminals={recentTerminals}
+          value={fromId}
+          onChange={setFromId}
+        />
 
         {/* Swap button */}
         <div className="flex justify-center">
@@ -67,27 +74,16 @@ export default function RouteSearchForm({ terminals }: { terminals: Terminal[] }
           </button>
         </div>
 
-        {/* To */}
-        <div className="space-y-1.5">
-          <label htmlFor="to" className="text-sm font-medium text-foreground">
-            To
-          </label>
-          <select
-            id="to"
-            name="to"
-            value={toId}
-            onChange={(e) => setToId(e.target.value)}
-            className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground
-              focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
-          >
-            <option value="">Select destination terminal</option>
-            {terminals.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <TerminalCombobox
+          id="to"
+          label="To"
+          name="to"
+          placeholder="Destination terminal…"
+          terminals={terminals}
+          recentTerminals={recentTerminals}
+          value={toId}
+          onChange={setToId}
+        />
 
         <button
           type="submit"
