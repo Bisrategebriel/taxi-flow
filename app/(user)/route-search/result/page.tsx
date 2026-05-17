@@ -1,4 +1,5 @@
 // FR-RS-03, FR-RS-04, FR-RS-05, FR-FI-01..03, FR-MP-01..05
+import { Suspense } from "react";
 import Link from "next/link";
 import { MapPinOff, ArrowRight, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -125,20 +126,24 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
 
   return (
     <div className="pb-8">
-      <SaveRecentSearch
-        fromId={fromId}
-        fromName={fromTerminal.name}
-        toId={toId}
-        toName={toTerminal.name}
-      />
+      <Suspense fallback={null}>
+        <SaveRecentSearch
+          fromId={fromId}
+          fromName={fromTerminal.name}
+          toId={toId}
+          toName={toTerminal.name}
+        />
+      </Suspense>
 
       {/* Map */}
-      <RouteMap
-        start={{ lat: fromTerminal.lat, lng: fromTerminal.lng, name: fromTerminal.name }}
-        end={{ lat: toTerminal.lat, lng: toTerminal.lng, name: toTerminal.name }}
-        polyline={ors?.polyline}
-        className="rounded-none md:rounded-2xl md:mx-4 md:mt-4"
-      />
+      <Suspense fallback={<div className="h-64 md:h-80 bg-muted animate-pulse" />}>
+        <RouteMap
+          start={{ lat: fromTerminal.lat, lng: fromTerminal.lng, name: fromTerminal.name }}
+          end={{ lat: toTerminal.lat, lng: toTerminal.lng, name: toTerminal.name }}
+          polyline={ors?.polyline}
+          className="rounded-none md:rounded-2xl md:mx-4 md:mt-4"
+        />
+      </Suspense>
 
       <div className="px-4 mt-4 space-y-4 max-w-lg mx-auto md:max-w-none">
 
@@ -176,7 +181,7 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
               <div className="flex items-center gap-2 pt-1 border-t border-border">
                 <span className="text-xs text-muted-foreground">Fare</span>
                 <span className="text-lg font-bold text-foreground">
-                  ${fare.amount.toFixed(2)}
+                  ${Number(fare.amount).toFixed(2)}
                 </span>
                 <span className="text-xs text-muted-foreground">{fare.currency}</span>
               </div>

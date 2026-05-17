@@ -1,7 +1,6 @@
 // FR-MP-10
 // Must only be imported inside 'use client' components loaded via dynamic(ssr:false)
 import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 
 function makePin(color: string, label: string): L.DivIcon {
   return L.divIcon({

@@ -1,6 +1,5 @@
 "use client";
 // FR-MP-01..06, FR-RS-04
-import "leaflet/dist/leaflet.css";
 import { useEffect } from "react";
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
 import { startIcon, endIcon } from "@/components/map/leaflet-setup";
