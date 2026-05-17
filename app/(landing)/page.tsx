@@ -1,10 +1,12 @@
 // FR-LP-01..10
+import { Suspense } from "react";
 import Link from "next/link";
 import Container from "@/components/ui/Container";
 import { Card, CardContent } from "@/components/ui/Card";
 import { buttonVariants } from "@/components/ui/Button";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/server";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -142,7 +144,10 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
 
@@ -163,13 +168,23 @@ export default function LandingPage() {
             </nav>
 
             <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <Link href="/auth/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                Sign In
-              </Link>
-              <Link href="/auth/register" className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
-                Get Started <IconArrowRight />
-              </Link>
+              <Suspense fallback={null}>
+                <ThemeToggle />
+              </Suspense>
+              {user ? (
+                <Link href="/dashboard" className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
+                  Dashboard <IconArrowRight />
+                </Link>
+              ) : (
+                <>
+                  <Link href="/auth/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                    Sign In
+                  </Link>
+                  <Link href="/auth/register" className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
+                    Get Started <IconArrowRight />
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </Container>

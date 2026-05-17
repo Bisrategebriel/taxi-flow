@@ -39,13 +39,16 @@ function IconMoon() {
   );
 }
 
-export function ThemeToggle({ className }: { className?: string }) {
+export default function ThemeToggle({ className }: { className?: string }) {
   const isDark = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const toggle = useCallback(() => {
     const next = !isDark;
     document.documentElement.classList.toggle('dark', next);
-    try { localStorage.setItem('theme', next ? 'dark' : 'light'); } catch {}
+    try {
+      localStorage.setItem('theme', next ? 'dark' : 'light');
+      document.cookie = `theme=${next ? 'dark' : 'light'}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {}
   }, [isDark]);
 
   return (

@@ -1,5 +1,7 @@
+"use client";
 // FR-UD-03, FR-UD-04, FR-UD-05
-import { redirect } from "next/navigation";
+// Auth is enforced by app/(user)/layout.tsx — no server-side guard needed here.
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Navigation,
@@ -8,10 +10,9 @@ import {
   Clock,
   Zap,
   TrendingUp,
-  Bell,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { createClient } from "@/lib/supabase/client";
+import DashboardHeader from "@/components/ui/DashboardHeader";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
@@ -69,19 +70,24 @@ const STATS: Stat[] = [
   { label: "Saved", value: "$0", icon: Zap, iconColor: "text-yellow-500" },
 ];
 
-export default async function UserDashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function UserDashboardPage() {
+  const [displayName, setDisplayName] = useState("there");
 
-  if (!user) redirect("/auth/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .single();
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          const first = data?.full_name?.split(" ")[0];
+          if (first) setDisplayName(first);
+        });
+    });
+  }, []);
 
   const now = new Date();
   const hour = now.getHours();
@@ -92,29 +98,14 @@ export default async function UserDashboardPage() {
     day: "numeric",
   });
 
-  const firstName = profile?.full_name?.split(" ")[0] ?? "there";
-
   return (
     <div className="flex flex-col gap-6 px-4 py-5 pb-8 max-w-lg mx-auto w-full md:max-w-none md:px-6">
 
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-muted-foreground text-sm">Good {timeOfDay}</p>
-          <h1 className="text-xl font-bold text-foreground">
-            {profile?.full_name ?? "there"}
-          </h1>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            aria-label="Notifications"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <Bell size={18} />
-          </button>
-          <ThemeToggle />
-        </div>
-      </div>
+      <DashboardHeader
+        greeting={`Good ${timeOfDay}`}
+        displayName={displayName}
+      />
 
       {/* Hero card */}
       <div className="relative overflow-hidden rounded-2xl bg-primary p-5">
@@ -134,7 +125,6 @@ export default async function UserDashboardPage() {
             Search Route
           </Link>
         </div>
-        {/* Decorative bolt */}
         <Zap
           size={96}
           className="absolute -right-4 -top-4 text-primary-foreground/10"
@@ -193,10 +183,7 @@ export default async function UserDashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold text-foreground">Recent Trips</h2>
-          <Link
-            href="/trip"
-            className="text-xs text-primary font-medium hover:underline"
-          >
+          <Link href="/trip" className="text-xs text-primary font-medium hover:underline">
             See all
           </Link>
         </div>

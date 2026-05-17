@@ -1,4 +1,6 @@
 // FR-UD-01, FR-AU-05
+// Leaflet CSS must be in the initial bundle, not a lazy chunk, or the map renders blank.
+import "leaflet/dist/leaflet.css";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import UserSidebar from "@/components/ui/UserSidebar";
