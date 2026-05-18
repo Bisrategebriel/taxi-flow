@@ -42,15 +42,16 @@ export default function TripInProgress({ start, end }: Props) {
   const [tripId] = useState(makeTripId);
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [distanceM, setDistanceM] = useState(0);
-  const [locationName, setLocationName] = useState("Locating…");
+  const [locationName, setLocationName] = useState(() =>
+    typeof window !== "undefined" && !navigator.geolocation
+      ? "Location unavailable"
+      : "Locating…"
+  );
   const prevPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocationName("Location unavailable");
-      return;
-    }
+    if (!navigator.geolocation) return;
     watchIdRef.current = navigator.geolocation.watchPosition(
       ({ coords }) => {
         const pos = { lat: coords.latitude, lng: coords.longitude };
@@ -111,7 +112,7 @@ export default function TripInProgress({ start, end }: Props) {
         <TripMapInner start={start} end={end} userPos={userPos} className="h-full w-full" />
 
         {/* Top bar overlaid on map */}
-        <div className="absolute top-0 left-0 right-0 z-[1000] flex items-center justify-between px-4 pt-4">
+        <div className="absolute top-0 left-0 right-0 z-1000 flex items-center justify-between px-4 pt-4">
           <button
             onClick={endTrip}
             aria-label="Close trip"

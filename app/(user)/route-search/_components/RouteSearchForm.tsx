@@ -2,7 +2,7 @@
 // FR-RS-01, FR-RS-02, FR-RS-06, FR-RS-07
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowUpDown, Search, Navigation, Route, History } from "lucide-react";
+import { ArrowUpDown, Search, Route, History } from "lucide-react";
 import { buttonVariants } from "@/components/ui/Button";
 import { useRecentSearches, type RecentSearch } from "@/hooks/useRecentSearches";
 import TerminalCombobox from "@/app/(user)/route-search/_components/TerminalCombobox";

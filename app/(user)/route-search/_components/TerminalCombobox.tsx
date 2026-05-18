@@ -31,15 +31,17 @@ export default function TerminalCombobox({
   const [query, setQuery] = useState(() =>
     value ? (terminals.find((t) => t.id === value)?.name ?? "") : ""
   );
+  const [prevValue, setPrevValue] = useState(value);
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync display text when value changes externally (swap button)
-  useEffect(() => {
+  // Sync display text when value changes externally (e.g. swap button) — React derived-state pattern
+  if (prevValue !== value) {
+    setPrevValue(value);
     setQuery(value ? (terminals.find((t) => t.id === value)?.name ?? "") : "");
-  }, [value, terminals]);
+  }
 
   // Close on outside click and revert to last confirmed selection
   useEffect(() => {
@@ -127,6 +129,7 @@ export default function TerminalCombobox({
         type="text"
         role="combobox"
         aria-expanded={open}
+        aria-controls={`${id}-listbox`}
         aria-autocomplete="list"
         autoComplete="off"
         placeholder={placeholder}
@@ -160,6 +163,7 @@ export default function TerminalCombobox({
 
       {open && items.length > 0 && (
         <ul
+          id={`${id}-listbox`}
           role="listbox"
           className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border border-border bg-card shadow-lg py-1"
         >
