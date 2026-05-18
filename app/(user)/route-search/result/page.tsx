@@ -1,7 +1,7 @@
 // FR-RS-03, FR-RS-04, FR-RS-05, FR-FI-01..03, FR-MP-01..05
 import { Suspense } from "react";
 import Link from "next/link";
-import { MapPinOff, ArrowRight, AlertCircle } from "lucide-react";
+import { MapPinOff, ArrowRight, AlertCircle, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDirections } from "@/lib/ors/client";
 import { buttonVariants } from "@/components/ui/Button";
@@ -135,15 +135,26 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
         />
       </Suspense>
 
-      {/* Map */}
-      <Suspense fallback={<div className="h-64 md:h-80 bg-muted animate-pulse" />}>
-        <RouteMap
-          start={{ lat: fromTerminal.lat, lng: fromTerminal.lng, name: fromTerminal.name }}
-          end={{ lat: toTerminal.lat, lng: toTerminal.lng, name: toTerminal.name }}
-          polyline={ors?.polyline}
-          className="rounded-none md:rounded-2xl md:mx-4 md:mt-4"
-        />
-      </Suspense>
+      {/* Map — 45 vh with back button overlaid */}
+      <div className="relative">
+        <Suspense fallback={<div className="h-[45vh] bg-muted animate-pulse" />}>
+          <RouteMap
+            start={{ lat: fromTerminal.lat, lng: fromTerminal.lng, name: fromTerminal.name }}
+            end={{ lat: toTerminal.lat, lng: toTerminal.lng, name: toTerminal.name }}
+            polyline={ors?.polyline}
+            className="rounded-none md:rounded-2xl md:mx-4"
+          />
+        </Suspense>
+        <Link
+          href="/route-search"
+          aria-label="Back to route search"
+          className="absolute top-4 left-4 z-1000 inline-flex h-9 w-9 items-center justify-center
+            rounded-full bg-black/30 text-white backdrop-blur-sm transition-colors hover:bg-black/50
+            md:left-8"
+        >
+          <ArrowLeft size={18} />
+        </Link>
+      </div>
 
       <div className="px-4 mt-4 space-y-4 max-w-lg mx-auto md:max-w-none">
 
