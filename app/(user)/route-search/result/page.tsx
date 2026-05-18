@@ -1,14 +1,16 @@
 // FR-RS-03, FR-RS-04, FR-RS-05, FR-FI-01..03, FR-MP-01..05
 import { Suspense } from "react";
 import Link from "next/link";
-import { MapPinOff, ArrowRight, AlertCircle, ArrowLeft, Route, Clock, DollarSign } from "lucide-react";
+import { MapPinOff, ArrowRight, AlertCircle, ArrowLeft, Route, Clock, DollarSign, Play } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDirections } from "@/lib/ors/client";
 import { buttonVariants } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { cn } from "@/lib/utils";
 import RouteMap from "@/components/map/RouteMap";
 import SaveRecentSearch from "@/app/(user)/route-search/result/_components/SaveRecentSearch";
 import RouteStops from "@/app/(user)/route-search/result/_components/RouteStops";
+import FareBreakdown from "@/app/(user)/route-search/result/_components/FareBreakdown";
 
 interface PageProps {
   searchParams: Promise<{ from?: string; to?: string }>;
@@ -88,42 +90,75 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
   const isReversed =
     route.start_terminal_id === toId && route.end_terminal_id === fromId;
 
-  // Fetch fare, distance, and intermediate stop terminal names in parallel
+  // Compute stop order before querying so we can build the segment filter in one pass
   const stopIds = route.intermediate_stops ?? [];
-  const [{ data: fares }, { data: distance }, { data: stopTerminals }] = await Promise.all([
-    supabase
-      .from("fares")
-      .select("amount, currency")
-      .eq("route_id", route.id)
-      .order("effective_from", { ascending: false })
-      .limit(1),
-    supabase
-      .from("distances")
-      .select("distance_km, duration_minutes")
-      .eq("from_terminal_id", fromId)
-      .eq("to_terminal_id", toId)
-      .maybeSingle()
-      .then((r) =>
-        r.data
-          ? r
-          : supabase
-              .from("distances")
-              .select("distance_km, duration_minutes")
-              .eq("from_terminal_id", toId)
-              .eq("to_terminal_id", fromId)
-              .maybeSingle()
-      ),
-    stopIds.length > 0
-      ? supabase.from("terminals").select("id, name").in("id", stopIds)
-      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
-  ]);
+  const orderedStopIds = isReversed ? [...stopIds].reverse() : stopIds;
+  const allStopIdsList = [fromId, ...orderedStopIds, toId];
+
+  // OR filter to find direct routes between every consecutive stop pair (both directions)
+  const segmentOrFilter =
+    allStopIdsList.length > 1
+      ? allStopIdsList
+          .slice(0, -1)
+          .flatMap((id, i) => {
+            const next = allStopIdsList[i + 1];
+            return [
+              `and(start_terminal_id.eq.${id},end_terminal_id.eq.${next})`,
+              `and(start_terminal_id.eq.${next},end_terminal_id.eq.${id})`,
+            ];
+          })
+          .join(",")
+      : null;
+
+  type SegRoute = {
+    id: string;
+    start_terminal_id: string;
+    end_terminal_id: string;
+    fares: { amount: number | string; currency: string; effective_from: string }[];
+  };
+
+  // Fetch fare, distance, intermediate terminal names, and per-segment fares in parallel
+  const [{ data: fares }, { data: distance }, { data: stopTerminals }, { data: segmentRoutes }] =
+    await Promise.all([
+      supabase
+        .from("fares")
+        .select("amount, currency")
+        .eq("route_id", route.id)
+        .order("effective_from", { ascending: false })
+        .limit(1),
+      supabase
+        .from("distances")
+        .select("distance_km, duration_minutes")
+        .eq("from_terminal_id", fromId)
+        .eq("to_terminal_id", toId)
+        .maybeSingle()
+        .then((r) =>
+          r.data
+            ? r
+            : supabase
+                .from("distances")
+                .select("distance_km, duration_minutes")
+                .eq("from_terminal_id", toId)
+                .eq("to_terminal_id", fromId)
+                .maybeSingle()
+        ),
+      stopIds.length > 0
+        ? supabase.from("terminals").select("id, name").in("id", stopIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+      segmentOrFilter
+        ? supabase
+            .from("routes")
+            .select("id, start_terminal_id, end_terminal_id, fares(amount, currency, effective_from)")
+            .eq("is_active", true)
+            .or(segmentOrFilter)
+        : Promise.resolve({ data: [] as SegRoute[], error: null }),
+    ]);
 
   const fare = fares?.[0] ?? null;
   const dist = distance ?? null;
 
-  // Build ordered stops list respecting route direction
+  // Build ordered stops list
   const terminalById = new Map((stopTerminals ?? []).map((t) => [t.id, t]));
-  const orderedStopIds = isReversed ? [...stopIds].reverse() : stopIds;
   const routeStops = [
     { id: fromId, name: fromTerminal.name },
     ...orderedStopIds.flatMap((id) => {
@@ -132,6 +167,27 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
     }),
     { id: toId, name: toTerminal.name },
   ];
+
+  // Per-segment fares for the breakdown card
+  const segRouteList = (segmentRoutes as SegRoute[] | null) ?? [];
+  const segmentFares = allStopIdsList.slice(0, -1).map((fromStopId, i) => {
+    const toStopId = allStopIdsList[i + 1];
+    const match = segRouteList.find(
+      (r) =>
+        (r.start_terminal_id === fromStopId && r.end_terminal_id === toStopId) ||
+        (r.start_terminal_id === toStopId && r.end_terminal_id === fromStopId)
+    );
+    const latestFare = (match?.fares ?? []).sort(
+      (a, b) =>
+        new Date(b.effective_from).getTime() - new Date(a.effective_from).getTime()
+    )[0] ?? null;
+    return {
+      fromName: routeStops[i].name,
+      toName: routeStops[i + 1].name,
+      amount: latestFare?.amount ?? null,
+      currency: latestFare?.currency ?? null,
+    };
+  });
 
   // Call ORS for polyline (graceful — returns null if key missing or API fails)
   const ors = await getDirections(
@@ -241,44 +297,58 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
 
-        {/* Step-by-step directions */}
+        {/* Fare breakdown */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h2 className="text-sm font-semibold text-foreground">Fare Breakdown</h2>
+            <FareBreakdown segments={segmentFares} />
+          </CardContent>
+        </Card>
+
+        {/* Directions as timeline */}
         {ors && ors.steps.length > 0 && (
           <Card>
             <CardContent className="p-4">
-              <h2 className="text-sm font-semibold text-foreground mb-3">
-                Directions ({ors.steps.length} steps)
-              </h2>
-              <ol className="space-y-2">
+              <h2 className="text-sm font-semibold text-foreground mb-4">Directions</h2>
+              <div>
                 {ors.steps.map((step, i) => (
-                  <li key={i} className="flex items-start gap-3 text-sm">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+                  <div
+                    key={i}
+                    className={cn("relative flex gap-3", i < ors.steps.length - 1 && "pb-5")}
+                  >
+                    {i < ors.steps.length - 1 && (
+                      <div className="absolute left-4 top-8 bottom-0 w-0.5 -translate-x-1/2 bg-border" />
+                    )}
+                    <span className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
                       {i + 1}
                     </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-foreground leading-snug">{step.instruction}</p>
+                    <div className="pt-1 flex-1 min-w-0">
+                      <p className="text-sm text-foreground leading-snug">{step.instruction}</p>
                       {step.name && step.name !== "-" && (
-                        <p className="text-muted-foreground text-xs mt-0.5">{step.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{step.name}</p>
                       )}
-                      <p className="text-muted-foreground text-xs mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {step.distance < 1000
                           ? `${Math.round(step.distance)} m`
                           : `${(step.distance / 1000).toFixed(1)} km`}
                       </p>
                     </div>
-                  </li>
+                  </div>
                 ))}
-              </ol>
+              </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Back link */}
+        {/* Start Trip */}
         <Link
-          href="/route-search"
-          className={buttonVariants({ variant: "outline", size: "sm" })}
+          href="/trip"
+          className={cn(buttonVariants({ size: "lg" }), "w-full gap-2")}
         >
-          ← New search
+          <Play size={14} fill="currentColor" strokeWidth={0} />
+          Start Trip
         </Link>
+
       </div>
     </div>
   );
