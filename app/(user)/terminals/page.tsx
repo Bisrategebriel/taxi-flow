@@ -1,5 +1,7 @@
 // FR-NT-01..05, FR-MP-01..05
 import { Suspense } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import Container from "@/components/ui/Container";
 import Heading from "@/components/ui/Heading";
@@ -16,6 +18,14 @@ export default async function TerminalsPage() {
 
   return (
     <Container className="py-6 max-w-lg md:max-w-none">
+      <Link
+        href="/dashboard"
+        aria-label="Back to dashboard"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border
+          bg-card text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mb-3"
+      >
+        <ArrowLeft size={16} />
+      </Link>
       <Heading level={1} className="text-xl sm:text-2xl mb-1">
         Terminals
       </Heading>
