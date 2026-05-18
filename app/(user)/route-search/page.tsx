@@ -1,8 +1,8 @@
 // FR-RS-01, FR-RS-02
 import { Suspense } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import Container from "@/components/ui/Container";
-import Heading from "@/components/ui/Heading";
 import RouteSearchForm from "@/app/(user)/route-search/_components/RouteSearchForm";
 
 export default async function RouteSearchPage() {
@@ -14,16 +14,22 @@ export default async function RouteSearchPage() {
     .order("name");
 
   return (
-    <Container className="py-6 max-w-lg">
-      <Heading level={1} className="text-xl sm:text-2xl mb-1">
-        Route Search
-      </Heading>
-      <p className="text-muted-foreground text-sm mb-6">
-        Find routes, fares, and directions between terminals.
+    <div className="px-4 py-5 pb-8 max-w-lg mx-auto w-full md:px-6">
+      <Link
+        href="/dashboard"
+        aria-label="Back to dashboard"
+        className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors mb-4"
+      >
+        <ArrowLeft size={20} />
+      </Link>
+      <h1 className="text-2xl font-bold text-foreground">Find a Route</h1>
+      <p className="text-sm text-muted-foreground mt-0.5 mb-6">
+        Search taxi routes between terminals
       </p>
-      <Suspense fallback={<div className="h-64 bg-muted animate-pulse rounded-xl" />}>
+
+      <Suspense fallback={<div className="h-64 bg-muted animate-pulse rounded-2xl" />}>
         <RouteSearchForm terminals={terminals ?? []} />
       </Suspense>
-    </Container>
+    </div>
   );
 }

@@ -41,7 +41,7 @@ export default function RouteMapInner({ start, end, polyline, className }: Props
         ];
 
   return (
-    <div className={cn("h-64 md:h-80 rounded-2xl overflow-hidden", className)}>
+    <div className={cn("h-[45vh] rounded-2xl overflow-hidden", className)}>
       <MapContainer
         center={center}
         zoom={13}
