@@ -1,16 +1,25 @@
-// FR-TR-01 (stub — full implementation Phase 6)
-import Heading from "@/components/ui/Heading";
-import Container from "@/components/ui/Container";
+import { createClient } from "@/lib/supabase/server";
+import TripInProgress from "./_components/TripInProgress";
 
-export default function TripPage() {
-  return (
-    <Container className="py-6">
-      <Heading level={1} className="text-xl sm:text-2xl mb-2">
-        My Trips
-      </Heading>
-      <p className="text-muted-foreground text-sm">
-        View your trip history and active trips — coming in Phase 6.
-      </p>
-    </Container>
-  );
+interface PageProps {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}
+
+export default async function TripPage({ searchParams }: PageProps) {
+  const { from: fromId, to: toId } = await searchParams;
+
+  let start = null;
+  let end = null;
+
+  if (fromId && toId) {
+    const supabase = await createClient();
+    const [{ data: fromTerminal }, { data: toTerminal }] = await Promise.all([
+      supabase.from("terminals").select("id, name, lat, lng").eq("id", fromId).single(),
+      supabase.from("terminals").select("id, name, lat, lng").eq("id", toId).single(),
+    ]);
+    start = fromTerminal ?? null;
+    end = toTerminal ?? null;
+  }
+
+  return <TripInProgress start={start} end={end} />;
 }

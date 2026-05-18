@@ -1,7 +1,7 @@
 // FR-RS-03, FR-RS-04, FR-RS-05, FR-FI-01..03, FR-MP-01..05
 import { Suspense } from "react";
 import Link from "next/link";
-import { MapPinOff, ArrowRight, ArrowLeft, Route, Clock, DollarSign, Play } from "lucide-react";
+import { MapPinOff, ArrowRight, ArrowLeft, Route, Clock, DollarSign, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDirections } from "@/lib/ors/client";
 import { buttonVariants } from "@/components/ui/Button";
@@ -313,11 +313,11 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
 
         {/* Start Trip */}
         <Link
-          href="/trip"
+          href={`/trip?from=${fromId}&to=${toId}`}
           className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 h-12")}
         >
-          <Play size={14} fill="currentColor" strokeWidth={0} />
           Start Trip
+          <ChevronRight size={18} />
         </Link>
 
       </div>
