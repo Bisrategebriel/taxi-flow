@@ -1,7 +1,7 @@
 // FR-RS-03, FR-RS-04, FR-RS-05, FR-FI-01..03, FR-MP-01..05
 import { Suspense } from "react";
 import Link from "next/link";
-import { MapPinOff, ArrowRight, AlertCircle, ArrowLeft } from "lucide-react";
+import { MapPinOff, ArrowRight, AlertCircle, ArrowLeft, Route, Clock, DollarSign } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDirections } from "@/lib/ors/client";
 import { buttonVariants } from "@/components/ui/Button";
@@ -179,22 +179,30 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
               <span className="font-medium text-foreground">{toTerminal.name}</span>
             </div>
 
-            {/* Distance + duration */}
-            {dist && (
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{dist.distance_km} km</span>
-                {dist.duration_minutes && <span>{dist.duration_minutes} min</span>}
-              </div>
-            )}
-
-            {/* Fare */}
-            {fare && (
-              <div className="flex items-center gap-2 pt-1 border-t border-border">
-                <span className="text-xs text-muted-foreground">Fare</span>
-                <span className="text-lg font-bold text-foreground">
-                  ${Number(fare.amount).toFixed(2)}
-                </span>
-                <span className="text-xs text-muted-foreground">{fare.currency}</span>
+            {/* Distance · Duration · Fare */}
+            {(dist || fare) && (
+              <div className="grid grid-cols-3 divide-x divide-border border-t border-border pt-3 mt-1">
+                <div className="flex flex-col items-center gap-1 px-2">
+                  <Route size={16} className="text-primary" />
+                  <span className="text-base font-bold text-foreground leading-none">
+                    {dist ? `${dist.distance_km} km` : "—"}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">Distance</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 px-2">
+                  <Clock size={16} className="text-primary" />
+                  <span className="text-base font-bold text-foreground leading-none">
+                    {dist?.duration_minutes ? `~${dist.duration_minutes} min` : "—"}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">Duration</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 px-2">
+                  <DollarSign size={16} className="text-primary" />
+                  <span className="text-base font-bold text-foreground leading-none">
+                    {fare ? `${Number(fare.amount).toFixed(2)}` : "—"}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">Fare</span>
+                </div>
               </div>
             )}
 
