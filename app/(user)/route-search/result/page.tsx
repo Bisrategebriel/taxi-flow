@@ -1,7 +1,7 @@
 // FR-RS-03, FR-RS-04, FR-RS-05, FR-FI-01..03, FR-MP-01..05
 import { Suspense } from "react";
 import Link from "next/link";
-import { MapPinOff, ArrowRight, AlertCircle, ArrowLeft, Route, Clock, DollarSign, Play } from "lucide-react";
+import { MapPinOff, ArrowRight, ArrowLeft, Route, Clock, DollarSign, Play } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDirections } from "@/lib/ors/client";
 import { buttonVariants } from "@/components/ui/Button";
@@ -189,13 +189,26 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
     };
   });
 
+  // Always include the direct start→destination fare; append only when there are intermediate stops
+  // (if no intermediates, segmentFares already contains the single direct pair)
+  const fareBreakdownSegments =
+    orderedStopIds.length > 0
+      ? [
+          ...segmentFares,
+          {
+            fromName: fromTerminal.name,
+            toName: toTerminal.name,
+            amount: fare?.amount ?? null,
+            currency: fare?.currency ?? null,
+          },
+        ]
+      : segmentFares;
+
   // Call ORS for polyline (graceful — returns null if key missing or API fails)
   const ors = await getDirections(
     { lat: fromTerminal.lat, lng: fromTerminal.lng },
     { lat: toTerminal.lat, lng: toTerminal.lng }
   );
-
-  const hasOrsKey = !!process.env.ORS_API_KEY;
 
   return (
     <div className="pb-8">
@@ -279,13 +292,6 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
               </div>
             )}
 
-            {/* No ORS key notice */}
-            {!hasOrsKey && (
-              <div className="flex items-start gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                <span>Detailed road directions unavailable — ORS_API_KEY not configured.</span>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -301,49 +307,14 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
         <Card>
           <CardContent className="p-4 space-y-3">
             <h2 className="text-sm font-semibold text-foreground">Fare Breakdown</h2>
-            <FareBreakdown segments={segmentFares} />
+            <FareBreakdown segments={fareBreakdownSegments} />
           </CardContent>
         </Card>
-
-        {/* Directions as timeline */}
-        {ors && ors.steps.length > 0 && (
-          <Card>
-            <CardContent className="p-4">
-              <h2 className="text-sm font-semibold text-foreground mb-4">Directions</h2>
-              <div>
-                {ors.steps.map((step, i) => (
-                  <div
-                    key={i}
-                    className={cn("relative flex gap-3", i < ors.steps.length - 1 && "pb-5")}
-                  >
-                    {i < ors.steps.length - 1 && (
-                      <div className="absolute left-4 top-8 bottom-0 w-0.5 -translate-x-1/2 bg-border" />
-                    )}
-                    <span className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
-                      {i + 1}
-                    </span>
-                    <div className="pt-1 flex-1 min-w-0">
-                      <p className="text-sm text-foreground leading-snug">{step.instruction}</p>
-                      {step.name && step.name !== "-" && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{step.name}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {step.distance < 1000
-                          ? `${Math.round(step.distance)} m`
-                          : `${(step.distance / 1000).toFixed(1)} km`}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Start Trip */}
         <Link
           href="/trip"
-          className={cn(buttonVariants({ size: "lg" }), "w-full gap-2")}
+          className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 h-12")}
         >
           <Play size={14} fill="currentColor" strokeWidth={0} />
           Start Trip
