@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import RouteMap from "@/components/map/RouteMap";
 import SaveRecentSearch from "@/app/(user)/route-search/result/_components/SaveRecentSearch";
+import RouteStops from "@/app/(user)/route-search/result/_components/RouteStops";
 
 interface PageProps {
   searchParams: Promise<{ from?: string; to?: string }>;
@@ -87,8 +88,9 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
   const isReversed =
     route.start_terminal_id === toId && route.end_terminal_id === fromId;
 
-  // Fetch fare and distance in parallel
-  const [{ data: fares }, { data: distance }] = await Promise.all([
+  // Fetch fare, distance, and intermediate stop terminal names in parallel
+  const stopIds = route.intermediate_stops ?? [];
+  const [{ data: fares }, { data: distance }, { data: stopTerminals }] = await Promise.all([
     supabase
       .from("fares")
       .select("amount, currency")
@@ -111,10 +113,25 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
               .eq("to_terminal_id", fromId)
               .maybeSingle()
       ),
+    stopIds.length > 0
+      ? supabase.from("terminals").select("id, name").in("id", stopIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
   ]);
 
   const fare = fares?.[0] ?? null;
   const dist = distance ?? null;
+
+  // Build ordered stops list respecting route direction
+  const terminalById = new Map((stopTerminals ?? []).map((t) => [t.id, t]));
+  const orderedStopIds = isReversed ? [...stopIds].reverse() : stopIds;
+  const routeStops = [
+    { id: fromId, name: fromTerminal.name },
+    ...orderedStopIds.flatMap((id) => {
+      const t = terminalById.get(id);
+      return t ? [{ id: t.id, name: t.name }] : [];
+    }),
+    { id: toId, name: toTerminal.name },
+  ];
 
   // Call ORS for polyline (graceful — returns null if key missing or API fails)
   const ors = await getDirections(
@@ -213,6 +230,14 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
                 <span>Detailed road directions unavailable — ORS_API_KEY not configured.</span>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Route stops timeline */}
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="text-sm font-semibold text-foreground mb-4">Journey</h2>
+            <RouteStops stops={routeStops} />
           </CardContent>
         </Card>
 
