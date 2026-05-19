@@ -61,7 +61,7 @@ export default async function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
+    <div className="flex flex-col w-full h-[calc(100vh-4rem)] md:h-screen">
       <ChatWindow
         initialMessages={initialMessages}
         sessionId={sessionId}

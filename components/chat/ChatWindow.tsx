@@ -9,7 +9,9 @@ import {
   MapPin,
   Clock,
   ChevronRight,
+  ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 import ChatMessage from "@/components/chat/ChatMessage";
 import ChatInput from "@/components/chat/ChatInput";
 
@@ -123,7 +125,14 @@ export default function ChatWindow({ initialMessages, sessionId: initialSessionI
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-border bg-card">
+      <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-border bg-card w-full">
+        <Link
+          href="/dashboard"
+          aria-label="Back to dashboard"
+          className="p-1.5 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft size={18} />
+        </Link>
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
           <Sparkles size={16} className="text-primary" />
         </div>
