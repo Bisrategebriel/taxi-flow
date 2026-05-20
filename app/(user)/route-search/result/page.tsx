@@ -313,7 +313,7 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
 
         {/* Start Trip */}
         <Link
-          href={`/trip?from=${fromId}&to=${toId}`}
+          href={`/trip?from=${fromId}&to=${toId}&routeId=${route.id}${fare ? `&fare=${fare.amount}` : ""}`}
           className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 h-12")}
         >
           Start Trip
