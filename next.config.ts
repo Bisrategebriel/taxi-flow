@@ -8,6 +8,8 @@ const withSerwistConfig = withSerwist({
   disable: process.env.NODE_ENV === "development",
 });
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  transpilePackages: ["react-markdown"],
+};
 
 export default withSerwistConfig(nextConfig);
