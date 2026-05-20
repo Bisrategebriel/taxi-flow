@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
             messages: currentMessages,
             tools: toolDeclarations,
             tool_choice: "auto",
+            parallel_tool_calls: false,
             max_tokens: 1024,
           });
 

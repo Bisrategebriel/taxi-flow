@@ -10,7 +10,7 @@ export const toolDeclarations: ChatCompletionTool[] = [
     function: {
       name: "get_terminals",
       description: "Returns all active taxi terminals with their names, cities, and coordinates.",
-      parameters: { type: "object", properties: {} },
+      parameters: { type: "object", properties: {}, required: [] },
     },
   },
   {
@@ -24,9 +24,10 @@ export const toolDeclarations: ChatCompletionTool[] = [
         properties: {
           terminal_name: {
             type: "string",
-            description: "Optional terminal name to filter routes by (partial match, case-insensitive).",
+            description: "Terminal name to filter routes by (partial match, case-insensitive).",
           },
         },
+        required: [],
       },
     },
   },
