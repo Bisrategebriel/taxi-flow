@@ -3,7 +3,7 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { X, Share2, MapPin } from "lucide-react";
+import { X, Share2, MapPin, Clock } from "lucide-react";
 import { useTripTracking } from "@/hooks/useTripTracking";
 
 const TripMapInner = dynamic(() => import("./TripMapInner"), {
@@ -54,7 +54,10 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
 
   const [distanceM, setDistanceM] = useState(0);
   const [shareToast, setShareToast] = useState(false);
+  const [locationName, setLocationName] = useState<string | null>(null);
+  const [startedAt] = useState(() => new Date());
   const prevPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastGeocodedRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const userPos = position ? { lat: position.latitude, lng: position.longitude } : null;
 
@@ -70,6 +73,39 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
     } else {
       prevPosRef.current = userPos;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [position]);
+
+  // Reverse-geocode when position moves >100 m from last geocoded point
+  useEffect(() => {
+    if (!userPos) return;
+    const last = lastGeocodedRef.current;
+    if (last && haversineM(last, userPos) < 100) return;
+    lastGeocodedRef.current = userPos;
+
+    const controller = new AbortController();
+    fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${userPos.lat}&lon=${userPos.lng}&format=json`,
+      { signal: controller.signal, headers: { "Accept-Language": "en" } }
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        const addr = data?.address;
+        const name =
+          addr?.road ||
+          addr?.suburb ||
+          addr?.neighbourhood ||
+          addr?.city_district ||
+          addr?.city ||
+          addr?.town ||
+          addr?.village ||
+          data?.display_name?.split(",")[0] ||
+          null;
+        setLocationName(name);
+      })
+      .catch(() => { /* geocoding failed silently */ });
+
+    return () => controller.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [position]);
 
@@ -101,11 +137,16 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
     // Phase 7: router.push("/payment?tripId=" + tripId)
   }
 
-  const locationLabel = geoError
+  const coordsLabel =
+    position ? `${position.latitude.toFixed(5)}°N, ${position.longitude.toFixed(5)}°E` : null;
+
+  const locationPrimary = geoError
     ? "Location unavailable"
     : isLoading || !position
     ? "Locating…"
-    : `${position.latitude.toFixed(5)}°N, ${position.longitude.toFixed(5)}°E`;
+    : locationName ?? coordsLabel ?? "Locating…";
+
+  const startTimeLabel = startedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -164,37 +205,62 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">Current location</p>
-            <p className="truncate text-sm font-semibold text-foreground mt-0.5">
-              {locationLabel}
+            <p className="truncate text-base font-semibold text-foreground mt-0.5">
+              {locationPrimary}
             </p>
+            {coordsLabel && locationName && (
+              <p className="truncate text-[10px] text-muted-foreground mt-0.5">{coordsLabel}</p>
+            )}
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-xs text-muted-foreground">ETA</p>
-            <p className="text-sm font-semibold text-foreground mt-0.5">—</p>
+            <p className="text-xs text-muted-foreground">Trip ID</p>
+            <p className="text-sm font-semibold text-foreground mt-0.5">#{tripShortId}</p>
           </div>
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-3 divide-x divide-border rounded-xl border border-border overflow-hidden">
+        <div className="grid grid-cols-2 divide-x divide-border rounded-xl border border-border overflow-hidden">
           <div className="flex flex-col items-center gap-0.5 py-3 px-2">
             <span className="text-base font-bold text-foreground leading-none">
               {distanceLabel}
             </span>
             <span className="text-[11px] text-muted-foreground">Distance</span>
           </div>
-          <div className="flex flex-col items-center gap-0.5 py-3 px-2">
-            <span className="text-base font-bold text-foreground leading-none">
-              #{tripShortId}
-            </span>
-            <span className="text-[11px] text-muted-foreground">Trip ID</span>
-          </div>
           <button
             onClick={handleShare}
             className="flex flex-col items-center gap-0.5 py-3 px-2 transition-colors hover:bg-muted"
           >
-            <Share2 size={18} className="text-primary" />
+            <Share2 size={18} className="text-foreground" />
             <span className="text-[11px] text-muted-foreground">Share</span>
           </button>
+        </div>
+
+        {/* Time row */}
+        <div className="flex items-center rounded-xl border border-border px-5 py-3 gap-3">
+          <div className="flex flex-col items-center gap-0.5 shrink-0">
+            <div className="flex items-center gap-1.5">
+              <Clock size={12} className="text-muted-foreground" />
+              <span className="text-sm font-semibold text-foreground">{startTimeLabel}</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground">Departed</span>
+          </div>
+
+          {/* Connecting path */}
+          <div className="flex flex-1 items-center gap-1 min-w-0">
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
+            <span className="flex-1 border-t border-dashed border-muted-foreground/30" />
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
+            <span className="flex-1 border-t border-dashed border-muted-foreground/30" />
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
+          </div>
+
+          <div className="flex flex-col items-center gap-0.5 shrink-0">
+            <div className="flex items-center gap-1.5">
+              <MapPin size={12} className="text-muted-foreground" />
+              <span className="text-sm font-semibold text-foreground">—</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground">Arrival</span>
+          </div>
         </div>
 
         {/* End Trip */}
