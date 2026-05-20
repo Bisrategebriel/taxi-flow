@@ -1,11 +1,10 @@
 // FR-AI-01..08, FR-CB-01..08, NFR-PE-03
 import { NextRequest } from "next/server";
-import { FunctionCallingMode } from "@google/generative-ai";
-import type { Content } from "@google/generative-ai";
+import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/completions";
 import { createClient } from "@/lib/supabase/server";
-import { genAI } from "@/lib/gemini/client";
-import { toolDeclarations, executeFunction } from "@/lib/gemini/tools";
-import { SYSTEM_PROMPT } from "@/lib/gemini/system-prompt";
+import { groq, GROQ_MODEL } from "@/lib/groq/client";
+import { toolDeclarations, executeFunction } from "@/lib/groq/tools";
+import { SYSTEM_PROMPT } from "@/lib/groq/system-prompt";
 
 export async function POST(req: NextRequest) {
   // Auth guard
@@ -39,18 +38,15 @@ export async function POST(req: NextRequest) {
     content: message,
   });
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
-    systemInstruction: SYSTEM_PROMPT,
-    tools: [{ functionDeclarations: toolDeclarations }],
-    toolConfig: { functionCallingConfig: { mode: FunctionCallingMode.AUTO } },
-  });
-
-  // Convert stored history to Gemini format (DB role "assistant" → Gemini "model")
-  const geminiHistory = history.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
+  // Build message list: system + history + current user message
+  const messages: ChatCompletionMessageParam[] = [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...history.map((m) => ({
+      role: (m.role === "assistant" ? "assistant" : "user") as "assistant" | "user",
+      content: m.content,
+    })),
+    { role: "user", content: message },
+  ];
 
   const encoder = new TextEncoder();
 
@@ -59,43 +55,49 @@ export async function POST(req: NextRequest) {
       let finalText = "";
 
       try {
-        // Build full contents array: history + new user message
-        let contents: Content[] = [
-          ...geminiHistory,
-          { role: "user", parts: [{ text: message }] },
-        ];
+        let currentMessages = messages;
 
-        // Function-calling loop — runs until Gemini returns plain text
+        // Function-calling loop — runs until the model returns plain text
         for (let round = 0; round < 5; round++) {
-          const result = await model.generateContent({ contents });
-          const response = result.response;
-          const candidate = response.candidates?.[0];
-          if (!candidate) break;
+          const completion = await groq.chat.completions.create({
+            model: GROQ_MODEL,
+            messages: currentMessages,
+            tools: toolDeclarations,
+            tool_choice: "auto",
+            max_tokens: 1024,
+          });
 
-          const functionCalls = response.functionCalls();
-          if (!functionCalls || functionCalls.length === 0) {
-            // No more tool calls — we have the final answer
-            finalText = response.text();
+          const choice = completion.choices[0];
+          if (!choice) break;
+
+          const assistantMsg = choice.message;
+
+          if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
+            finalText = assistantMsg.content ?? "";
             break;
           }
 
-          // Append model's function-call turn to history
-          contents = [...contents, { role: "model", parts: candidate.content.parts } as Content];
+          // Append the assistant's tool-call turn
+          // Normalize content: undefined → null (Groq rejects undefined in round 2)
+          currentMessages = [
+            ...currentMessages,
+            { ...assistantMsg, content: assistantMsg.content ?? null } as ChatCompletionMessageParam,
+          ];
 
-          // Execute all requested functions in parallel
-          const fnResponses = await Promise.all(
-            functionCalls.map(async (fc) => {
-              const result = await executeFunction(
-                fc.name,
-                (fc.args ?? {}) as Record<string, unknown>,
-                supabase
-              );
-              return { functionResponse: { name: fc.name, response: result } };
+          // Execute all tool calls in parallel and append results
+          const toolResponses = await Promise.all(
+            assistantMsg.tool_calls.map(async (tc) => {
+              const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+              const result = await executeFunction(tc.function.name, args, supabase);
+              return {
+                role: "tool" as const,
+                tool_call_id: tc.id,
+                content: JSON.stringify(result),
+              };
             })
           );
 
-          // Append function results as a user turn
-          contents = [...contents, { role: "user", parts: fnResponses } as Content];
+          currentMessages = [...currentMessages, ...toolResponses];
         }
 
         // Stream the final text in ~40-char chunks (NFR-PE-03: first token < 3s)
@@ -107,11 +109,11 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (err) {
-        // Graceful fallback (NFR-RE-06)
-        const msg =
-          err instanceof Error && err.message.includes("429")
-            ? "I'm receiving too many requests right now. Please try again in a moment."
-            : "Sorry, I ran into a problem. Please try again.";
+        console.error("[chat/route] Groq error:", err);
+        const errMsg = err instanceof Error ? err.message : "";
+        const msg = errMsg.includes("429") || errMsg.includes("rate_limit")
+          ? "I'm receiving too many requests right now. Please try again in a moment."
+          : "Sorry, I ran into a problem. Please try again.";
         controller.enqueue(encoder.encode(msg));
         finalText = msg;
       }

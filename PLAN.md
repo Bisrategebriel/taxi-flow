@@ -22,7 +22,7 @@ TaxiFlow is a taxi terminal & route management platform consisting of:
 | Styling | Tailwind CSS 4 (CSS-first config) + Fluent 2 design tokens |
 | Components | `@fluentui/react-components` v9 (complex controls) + custom Tailwind components (layout, mobile shell) |
 | Database & Auth | Supabase (Postgres, RLS, Realtime) |
-| AI | Gemini API (`gemini-2.0-flash`) with function-calling |
+| AI | Groq API (`llama-3.3-70b-versatile`) with function-calling |
 | Maps | Leaflet via react-leaflet + OpenStreetMap tiles |
 | Routing engine | OpenRouteService (free tier) |
 | Payments | Stripe (Payment Intents + webhooks) |
@@ -86,7 +86,7 @@ taxiflow/
 │   └── admin/                # admin-only shells, sidebar, data tables
 ├── lib/
 │   ├── supabase/             # client, server, middleware clients
-│   ├── gemini/               # Gemini client + tool definitions
+│   ├── groq/                 # Groq client + tool definitions
 │   ├── ors/                  # OpenRouteService client
 │   ├── stripe/               # Stripe server + client helpers
 │   ├── fluent-tokens.ts      # Fluent 2 tokens → Tailwind theme bridge
@@ -244,18 +244,18 @@ Each phase has: a goal, prerequisite phases, deliverables, acceptance criteria, 
 ---
 
 ### Phase 5 — AI chatbot
-**Goal:** Gemini-powered chat with function-calling against Supabase and ORS, streamed responses, persisted history.
+**Goal:** Groq-powered chat with function-calling against Supabase, streamed responses, persisted history.
 
 **Covers:** SRS §4.6 (FR-AI-01..08), §10 (FR-CB-01..08), §12.2 (NFR-PE-03).
 
 **Deliverables:**
-- `lib/gemini/` with client and tool definitions: `get_routes`, `get_terminals`, `get_fare`, `find_nearest_terminal`, `get_directions`, `get_trip_status`
-- `app/api/chat/route.ts` Route Handler: auth check → Gemini call → tool execution → streamed response
+- `lib/groq/` with client and tool definitions: `get_routes`, `get_terminals`, `get_fare`, `get_route_details`
+- `app/api/chat/route.ts` Route Handler: auth check → Groq call → tool execution → streamed response
 - Chat UI in `components/chat/`: ChatWindow, ChatMessage, ChatInput, streaming indicator
 - Conversation history persisted to `chat_logs` (FR-AI-06)
 - System prompt with TaxiFlow schema context
 - Disabled state when admin toggles AI off (FR-AI-08, gated by `system_settings.ai_chat_enabled`)
-- Graceful fallback when Gemini is unreachable (NFR-RE-06)
+- Graceful fallback when Groq is unreachable (NFR-RE-06)
 
 **Acceptance:** Ask "what's the fare from Terminal A to Terminal B" → bot calls `get_fare`, returns real value. First token within 3s (NFR-PE-03). Toggle off in admin disables UI for users.
 
@@ -395,7 +395,7 @@ These are intentionally not decided yet — we'll resolve them at the phase that
 
 - **Phase 2:** Fluent 2 light vs dark default, brand color overlay (if any)
 - **Phase 4:** ORS request-budget strategy if free tier limits become tight
-- **Phase 5:** Gemini system prompt wording — first draft in phase, refined after testing
+- **Phase 5:** AI system prompt wording — first draft in phase, refined after testing
 - **Phase 7:** Receipt format (PDF vs HTML email vs in-app screen) — FR-PM-11 is "Low" priority
 - **Phase 10:** Custom domain or `*.vercel.app` for v1.0
 

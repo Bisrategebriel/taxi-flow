@@ -1,66 +1,76 @@
-// FR-AI-02 — Gemini function declarations and server-side executors
-import type { FunctionDeclaration } from "@google/generative-ai";
-import { SchemaType } from "@google/generative-ai";
+// FR-AI-02 — Groq/OpenAI-format tool declarations and server-side executors
+import type { ChatCompletionTool } from "groq-sdk/resources/chat/completions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// ─── Declarations (sent to Gemini) ───────────────────────────────────────────
+// ─── Declarations (sent to Groq) ─────────────────────────────────────────────
 
-export const toolDeclarations: FunctionDeclaration[] = [
+export const toolDeclarations: ChatCompletionTool[] = [
   {
-    name: "get_terminals",
-    description: "Returns all active taxi terminals with their names, cities, and coordinates.",
-    parameters: { type: SchemaType.OBJECT, properties: {}, required: [] },
-  },
-  {
-    name: "get_routes",
-    description:
-      "Returns active routes. Optionally filter by a terminal name to find routes that start or end there.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        terminal_name: {
-          type: SchemaType.STRING,
-          description: "Optional terminal name to filter routes by (partial match, case-insensitive).",
-        },
-      },
-      required: [],
+    type: "function",
+    function: {
+      name: "get_terminals",
+      description: "Returns all active taxi terminals with their names, cities, and coordinates.",
+      parameters: { type: "object", properties: {} },
     },
   },
   {
-    name: "get_fare",
-    description: "Returns the fare for travelling between two specific terminals.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        from_terminal: {
-          type: SchemaType.STRING,
-          description: "Name of the departure terminal (partial match accepted).",
-        },
-        to_terminal: {
-          type: SchemaType.STRING,
-          description: "Name of the destination terminal (partial match accepted).",
+    type: "function",
+    function: {
+      name: "get_routes",
+      description:
+        "Returns active routes. Optionally filter by a terminal name to find routes that start or end there.",
+      parameters: {
+        type: "object",
+        properties: {
+          terminal_name: {
+            type: "string",
+            description: "Optional terminal name to filter routes by (partial match, case-insensitive).",
+          },
         },
       },
-      required: ["from_terminal", "to_terminal"],
     },
   },
   {
-    name: "get_route_details",
-    description:
-      "Returns details for a route between two terminals: distance, estimated duration, intermediate stops, and fare.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        from_terminal: {
-          type: SchemaType.STRING,
-          description: "Name of the departure terminal (partial match accepted).",
+    type: "function",
+    function: {
+      name: "get_fare",
+      description: "Returns the fare for travelling between two specific terminals.",
+      parameters: {
+        type: "object",
+        properties: {
+          from_terminal: {
+            type: "string",
+            description: "Name of the departure terminal (partial match accepted).",
+          },
+          to_terminal: {
+            type: "string",
+            description: "Name of the destination terminal (partial match accepted).",
+          },
         },
-        to_terminal: {
-          type: SchemaType.STRING,
-          description: "Name of the destination terminal (partial match accepted).",
-        },
+        required: ["from_terminal", "to_terminal"],
       },
-      required: ["from_terminal", "to_terminal"],
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_route_details",
+      description:
+        "Returns details for a route between two terminals: distance, estimated duration, intermediate stops, and fare.",
+      parameters: {
+        type: "object",
+        properties: {
+          from_terminal: {
+            type: "string",
+            description: "Name of the departure terminal (partial match accepted).",
+          },
+          to_terminal: {
+            type: "string",
+            description: "Name of the destination terminal (partial match accepted).",
+          },
+        },
+        required: ["from_terminal", "to_terminal"],
+      },
     },
   },
 ];
@@ -77,10 +87,7 @@ async function getTerminals(supabase: SupabaseClient) {
   return { terminals: data ?? [] };
 }
 
-async function getRoutes(
-  args: Record<string, unknown>,
-  supabase: SupabaseClient
-) {
+async function getRoutes(args: Record<string, unknown>, supabase: SupabaseClient) {
   const terminalName = (args.terminal_name as string | undefined)?.toLowerCase();
   const query = supabase
     .from("routes")
@@ -181,10 +188,7 @@ async function getRouteDetails(args: Record<string, unknown>, supabase: Supabase
 
   const { data: routes } = await supabase
     .from("routes")
-    .select(
-      `id, name, intermediate_stops,
-       fares(amount, currency, effective_from)`
-    )
+    .select(`id, name, intermediate_stops, fares(amount, currency, effective_from)`)
     .eq("is_active", true)
     .or(
       `and(start_terminal_id.eq.${from.id},end_terminal_id.eq.${to.id}),` +
@@ -201,7 +205,6 @@ async function getRouteDetails(args: Record<string, unknown>, supabase: Supabase
     (a, b) => new Date(b.effective_from).getTime() - new Date(a.effective_from).getTime()
   )[0] ?? null;
 
-  // Distance from distances table
   const { data: distData } = await supabase
     .from("distances")
     .select("distance_km, duration_minutes")
@@ -212,14 +215,10 @@ async function getRouteDetails(args: Record<string, unknown>, supabase: Supabase
     .limit(1)
     .maybeSingle();
 
-  // Intermediate stop names
   const stopIds: string[] = route.intermediate_stops ?? [];
   let stopNames: string[] = [];
   if (stopIds.length > 0) {
-    const { data: stops } = await supabase
-      .from("terminals")
-      .select("id, name")
-      .in("id", stopIds);
+    const { data: stops } = await supabase.from("terminals").select("id, name").in("id", stopIds);
     stopNames = stopIds.flatMap((id) => {
       const t = (stops ?? []).find((s) => s.id === id);
       return t ? [t.name] : [];

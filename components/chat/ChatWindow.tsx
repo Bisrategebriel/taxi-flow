@@ -77,7 +77,8 @@ export default function ChatWindow({ initialMessages, sessionId: initialSessionI
         body: JSON.stringify({
           message: content,
           sessionId,
-          history: newMessages.slice(-10).map((m) => ({
+          // Send only previous messages — API route appends the current message separately
+          history: messages.slice(-10).map((m) => ({
             role: m.role,
             content: m.content,
           })),

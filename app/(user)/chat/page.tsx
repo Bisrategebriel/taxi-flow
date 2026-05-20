@@ -5,7 +5,6 @@ import ChatWindow from "@/components/chat/ChatWindow";
 
 export default async function ChatPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
   // Check ai_chat_enabled setting (FR-AI-08)
   const { data: setting } = await supabase
@@ -30,40 +29,13 @@ export default async function ChatPage() {
     );
   }
 
-  // Load the most recent session and its last 20 messages (FR-AI-05, FR-AI-06)
-  let sessionId: string;
-  let initialMessages: { role: "user" | "assistant"; content: string }[] = [];
-
-  if (user) {
-    const { data: recentLog } = await supabase
-      .from("chat_logs")
-      .select("session_id")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (recentLog?.session_id) {
-      sessionId = recentLog.session_id;
-      const { data: history } = await supabase
-        .from("chat_logs")
-        .select("role, content")
-        .eq("user_id", user.id)
-        .eq("session_id", sessionId)
-        .order("created_at", { ascending: true })
-        .limit(20);
-      initialMessages = (history ?? []) as typeof initialMessages;
-    } else {
-      sessionId = crypto.randomUUID();
-    }
-  } else {
-    sessionId = crypto.randomUUID();
-  }
+  // Always start a fresh session on page load (FR-AI-06: messages still saved to DB)
+  const sessionId = crypto.randomUUID();
 
   return (
     <div className="flex flex-col w-full h-[calc(100vh-4rem)] md:h-screen">
       <ChatWindow
-        initialMessages={initialMessages}
+        initialMessages={[]}
         sessionId={sessionId}
       />
     </div>
