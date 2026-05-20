@@ -7,6 +7,10 @@ import { toolDeclarations, executeFunction } from "@/lib/groq/tools";
 import { SYSTEM_PROMPT } from "@/lib/groq/system-prompt";
 
 export async function POST(req: NextRequest) {
+  if (!process.env.GROQ_API_KEY) {
+    return new Response("AI chat is not configured.", { status: 503 });
+  }
+
   // Auth guard
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
