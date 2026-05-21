@@ -1,5 +1,6 @@
 // DEV ONLY — visual verification of all four map marker types.
 // Navigate to /map-markers in dev. Delete this entire (dev) folder before release.
+"use client";
 import dynamic from "next/dynamic";
 
 const MapMarkersDemoInner = dynamic(
