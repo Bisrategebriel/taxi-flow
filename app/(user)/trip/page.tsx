@@ -1,5 +1,6 @@
 // FR-TR-01
 import { createClient } from "@/lib/supabase/server";
+import { getDirections } from "@/lib/ors/client";
 import TripInProgress from "./_components/TripInProgress";
 
 interface PageProps {
@@ -18,6 +19,8 @@ export default async function TripPage({ searchParams }: PageProps) {
   let start = null;
   let end = null;
 
+  let initialPolyline: [number, number][] | null = null;
+
   if (fromId && toId) {
     const supabase = await createClient();
     const [{ data: fromTerminal }, { data: toTerminal }] = await Promise.all([
@@ -26,6 +29,14 @@ export default async function TripPage({ searchParams }: PageProps) {
     ]);
     start = fromTerminal ?? null;
     end = toTerminal ?? null;
+
+    if (start && end) {
+      const directions = await getDirections(
+        { lat: start.lat, lng: start.lng },
+        { lat: end.lat, lng: end.lng }
+      );
+      initialPolyline = directions?.polyline ?? null;
+    }
   }
 
   return (
@@ -35,6 +46,7 @@ export default async function TripPage({ searchParams }: PageProps) {
       routeId={routeId ?? null}
       fareAmount={fare ? parseFloat(fare) : null}
       initialTripId={tripId ?? undefined}
+      initialPolyline={initialPolyline}
     />
   );
 }

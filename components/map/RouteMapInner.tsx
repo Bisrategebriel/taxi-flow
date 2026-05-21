@@ -1,8 +1,8 @@
 "use client";
 // FR-MP-01..06, FR-RS-04
 import { useEffect } from "react";
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
-import { startIcon, endIcon } from "@/components/map/leaflet-setup";
+import { MapContainer, TileLayer, Polyline, useMap } from "react-leaflet";
+import { DepartureTerminalMarker, ArrivalTerminalMarker } from "@/components/map/markers";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -53,12 +53,8 @@ export default function RouteMapInner({ start, end, polyline, className }: Props
           attribution="© OpenStreetMap contributors"
         />
         <Polyline positions={line} pathOptions={{ color: "#0f6cbd", weight: 4, opacity: 0.85 }} />
-        <Marker position={[start.lat, start.lng]} icon={startIcon}>
-          <Popup>{start.name}</Popup>
-        </Marker>
-        <Marker position={[end.lat, end.lng]} icon={endIcon}>
-          <Popup>{end.name}</Popup>
-        </Marker>
+        <DepartureTerminalMarker position={[start.lat, start.lng]} label={start.name} />
+        <ArrivalTerminalMarker  position={[end.lat, end.lng]}   label={end.name} />
         <FitBounds start={start} end={end} />
       </MapContainer>
     </div>

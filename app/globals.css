@@ -101,3 +101,52 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
 }
+
+/* ── Map markers ──────────────────────────────────────────────────────────── */
+
+/* Outer wrapper is 40 px — gives the expanding halo room to breathe */
+.tf-user-pulse {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+/* Solid blue dot — centred inside the 40 px wrapper */
+.tf-user-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  margin-left: -7px;
+  border-radius: 50%;
+  background: #0f6cbd;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 6px rgba(15, 108, 189, 0.5);
+  z-index: 1;
+}
+
+/* Pulsing halo — starts at dot size and radiates outward */
+.tf-user-pulse::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  margin-left: -7px;
+  border-radius: 50%;
+  background: rgba(15, 108, 189, 0.35);
+  animation: tf-user-pulse 2.2s ease-out infinite;
+}
+
+@keyframes tf-user-pulse {
+  0%   { transform: scale(1);   opacity: 0.9; }
+  100% { transform: scale(2.7); opacity: 0;   }
+}
+
+.tf-vehicle-img {
+  transition: transform 0.35s ease;
+}
