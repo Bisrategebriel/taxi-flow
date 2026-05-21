@@ -16,6 +16,7 @@ interface Props {
   userPos: { lat: number; lng: number } | null;
   heading?: number;
   polyline?: [number, number][] | null;
+  arrivalTime?: string;
   className?: string;
 }
 
@@ -38,7 +39,7 @@ function PanToUser({ pos }: { pos: { lat: number; lng: number } }) {
   return null;
 }
 
-export default function TripMapInner({ start, end, userPos, heading, polyline, className }: Props) {
+export default function TripMapInner({ start, end, userPos, heading, polyline, arrivalTime, className }: Props) {
   const center: [number, number] = userPos
     ? [userPos.lat, userPos.lng]
     : start
@@ -82,6 +83,7 @@ export default function TripMapInner({ start, end, userPos, heading, polyline, c
           <ArrivalTerminalMarker
             position={[end.lat, end.lng]}
             label={end.name}
+            arrivalTime={arrivalTime}
           />
         )}
         {userPos && (

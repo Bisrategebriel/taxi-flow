@@ -25,6 +25,7 @@ interface Props {
   fareAmount: number | null;
   initialTripId?: string;
   initialPolyline?: [number, number][] | null;
+  initialDurationS?: number | null;
 }
 
 function bearingDeg(
@@ -54,7 +55,7 @@ function haversineM(
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 
-export default function TripInProgress({ start, end, routeId, fareAmount, initialTripId, initialPolyline }: Props) {
+export default function TripInProgress({ start, end, routeId, fareAmount, initialTripId, initialPolyline, initialDurationS }: Props) {
   const router = useRouter();
   const { tripId, position, geoError, isLoading, endTrip, generateShareToken } =
     useTripTracking({
@@ -129,7 +130,41 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
     [distanceM]
   );
 
-  const tripShortId = tripId ? tripId.slice(-6).toUpperCase() : "———";
+  // TFR + 4-digit numeric suffix derived from the UUID's last 4 hex digits
+  const tripShortId = useMemo(() => {
+    if (!tripId) return "TFR——";
+    const hex = tripId.replace(/-/g, "").slice(-4);
+    const num = parseInt(hex, 16) % 10000;
+    return `TFR${num.toString().padStart(4, "0")}`;
+  }, [tripId]);
+
+  const arriveAtLabel = useMemo(() => {
+    if (!initialDurationS) return null;
+    const arrival = new Date(startedAt.getTime() + initialDurationS * 1000);
+    return arrival.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }, [startedAt, initialDurationS]);
+
+  // Persist active trip to localStorage so the banner survives navigation
+  useEffect(() => {
+    if (!tripId || !start || !end) return;
+    localStorage.setItem(
+      "taxiflow_active_trip",
+      JSON.stringify({
+        tripId,
+        fromId: start.id,
+        toId: end.id,
+        fromName: start.name,
+        toName: end.name,
+        routeId,
+        fare: fareAmount,
+      })
+    );
+  }, [tripId, start, end, routeId, fareAmount]);
+
+  function handleDismiss() {
+    // Leave trip running — banner will appear on other pages
+    router.push("/dashboard");
+  }
 
   const handleShare = useCallback(async () => {
     const token = await generateShareToken();
@@ -147,8 +182,9 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
   }, [generateShareToken]);
 
   async function handleEndTrip() {
+    localStorage.removeItem("taxiflow_active_trip");
     await endTrip();
-    router.push("/dashboard");
+    router.push("/dashboard?tripEnded=1");
     // Phase 7: router.push("/payment?tripId=" + tripId)
   }
 
@@ -167,13 +203,13 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Map */}
       <div className="relative flex-1 min-h-0">
-        <TripMapInner start={start} end={end} userPos={userPos} heading={heading} polyline={initialPolyline} className="h-full w-full" />
+        <TripMapInner start={start} end={end} userPos={userPos} heading={heading} polyline={initialPolyline} arrivalTime={arriveAtLabel ?? undefined} className="h-full w-full" />
 
         {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 z-1000 flex items-center justify-between px-4 pt-4">
           <button
-            onClick={handleEndTrip}
-            aria-label="Close trip"
+            onClick={handleDismiss}
+            aria-label="Dismiss trip view"
             className="flex h-10 w-10 items-center justify-center rounded-full
               bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
           >
@@ -229,7 +265,7 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
           </div>
           <div className="shrink-0 text-right">
             <p className="text-xs text-muted-foreground">Trip ID</p>
-            <p className="text-sm font-semibold text-foreground mt-0.5">#{tripShortId}</p>
+            <p className="text-sm font-semibold text-foreground mt-0.5">{tripShortId}</p>
           </div>
         </div>
 
@@ -272,7 +308,7 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
           <div className="flex flex-col items-center gap-0.5 shrink-0">
             <div className="flex items-center gap-1.5">
               <MapPin size={12} className="text-muted-foreground" />
-              <span className="text-sm font-semibold text-foreground">—</span>
+              <span className="text-sm font-semibold text-foreground">{arriveAtLabel ?? "—"}</span>
             </div>
             <span className="text-[10px] text-muted-foreground">Arrival</span>
           </div>

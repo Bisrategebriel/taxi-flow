@@ -2,6 +2,7 @@
 // FR-UD-03, FR-UD-04, FR-UD-05
 // Auth is enforced by app/(user)/layout.tsx — no server-side guard needed here.
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Navigation,
@@ -10,6 +11,7 @@ import {
   Clock,
   Zap,
   TrendingUp,
+  CheckCircle2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import DashboardHeader from "@/components/ui/DashboardHeader";
@@ -71,7 +73,20 @@ const STATS: Stat[] = [
 ];
 
 export default function UserDashboardPage() {
+  const router = useRouter();
   const [displayName, setDisplayName] = useState("there");
+  const [showTripEndedToast, setShowTripEndedToast] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tripEnded") === "1") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowTripEndedToast(true);
+      router.replace("/dashboard");
+      const t = setTimeout(() => setShowTripEndedToast(false), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [router]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -100,6 +115,16 @@ export default function UserDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-5 pb-8 max-w-lg mx-auto w-full md:max-w-none md:px-6">
+
+      {/* Trip ended toast */}
+      {showTripEndedToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-9999 flex items-center gap-2.5
+          rounded-xl bg-emerald-600 px-5 py-3 shadow-lg text-white text-sm font-semibold
+          animate-in fade-in slide-in-from-top-2 duration-300 whitespace-nowrap">
+          <CheckCircle2 size={16} strokeWidth={2.5} />
+          Trip ended successfully
+        </div>
+      )}
 
       {/* Header */}
       <DashboardHeader
