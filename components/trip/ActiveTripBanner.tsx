@@ -23,6 +23,7 @@ export default function ActiveTripBanner() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem("taxiflow_active_trip");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTrip(raw ? (JSON.parse(raw) as ActiveTrip) : null);
     } catch { /* storage blocked or stale */ }
   }, [pathname]);

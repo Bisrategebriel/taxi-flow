@@ -8,10 +8,11 @@ export default function ActiveTripSpacer() {
 
   useEffect(() => {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActive(!!localStorage.getItem("taxiflow_active_trip") && pathname !== "/trip");
     } catch { /* storage blocked */ }
   }, [pathname]);
 
   if (!active) return null;
-  return <div className="h-[52px] w-full shrink-0" aria-hidden />;
+  return <div className="h-13 w-full shrink-0" aria-hidden />;
 }

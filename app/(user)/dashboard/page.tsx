@@ -80,6 +80,7 @@ export default function UserDashboardPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("tripEnded") === "1") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowTripEndedToast(true);
       router.replace("/dashboard");
       const t = setTimeout(() => setShowTripEndedToast(false), 4000);
