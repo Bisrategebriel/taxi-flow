@@ -133,7 +133,11 @@ export default function TerminalsNearMe({ terminals }: { terminals: Terminal[] }
                 </div>
               </div>
               <Link
-                href={`/route-search?from=${t.id}`}
+                href={
+                  userLoc
+                    ? `/terminals/${t.id}/directions?lat=${userLoc.lat}&lng=${userLoc.lng}`
+                    : `/terminals/${t.id}/directions`
+                }
                 className="shrink-0 rounded-lg border border-border bg-background px-3 py-1.5 text-xs
                   font-medium text-foreground hover:bg-muted transition-colors"
               >

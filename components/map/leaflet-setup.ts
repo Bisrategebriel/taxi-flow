@@ -32,7 +32,22 @@ function makeUserPin(): L.DivIcon {
   });
 }
 
+function makeTerminalIcon(): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    html: `<div style="
+      width:22px;height:22px;border-radius:50%;
+      background:#475569;border:3px solid white;
+      box-shadow:0 2px 5px rgba(0,0,0,0.35);">
+    </div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -14],
+  });
+}
+
 export const startIcon = makePin("#0f6cbd", "A");
 export const endIcon = makePin("#16a34a", "B");
 export const pinIcon = makePin("#64748b", "•");
+export const terminalIcon = makeTerminalIcon();
 export const userIcon = makeUserPin();
