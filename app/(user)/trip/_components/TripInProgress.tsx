@@ -24,6 +24,19 @@ interface Props {
   routeId: string | null;
   fareAmount: number | null;
   initialTripId?: string;
+  initialPolyline?: [number, number][] | null;
+}
+
+function bearingDeg(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number }
+): number {
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
 function haversineM(
@@ -41,7 +54,7 @@ function haversineM(
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 
-export default function TripInProgress({ start, end, routeId, fareAmount, initialTripId }: Props) {
+export default function TripInProgress({ start, end, routeId, fareAmount, initialTripId, initialPolyline }: Props) {
   const router = useRouter();
   const { tripId, position, geoError, isLoading, endTrip, generateShareToken } =
     useTripTracking({
@@ -53,6 +66,7 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
     });
 
   const [distanceM, setDistanceM] = useState(0);
+  const [heading, setHeading] = useState(0);
   const [shareToast, setShareToast] = useState(false);
   const [locationName, setLocationName] = useState<string | null>(null);
   const [startedAt] = useState(() => new Date());
@@ -61,12 +75,13 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
 
   const userPos = position ? { lat: position.latitude, lng: position.longitude } : null;
 
-  // Accumulate distance when position changes (effect runs in response to external GPS data)
+  // Accumulate distance and update heading when position changes
   useEffect(() => {
     if (!userPos) return;
     if (prevPosRef.current) {
       const d = haversineM(prevPosRef.current, userPos);
       if (d > 3) {
+        setHeading(bearingDeg(prevPosRef.current, userPos));
         setDistanceM((prev) => prev + d);
         prevPosRef.current = userPos;
       }
@@ -152,7 +167,7 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Map */}
       <div className="relative flex-1 min-h-0">
-        <TripMapInner start={start} end={end} userPos={userPos} className="h-full w-full" />
+        <TripMapInner start={start} end={end} userPos={userPos} heading={heading} polyline={initialPolyline} className="h-full w-full" />
 
         {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 z-1000 flex items-center justify-between px-4 pt-4">

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
-import { startIcon, endIcon, userIcon } from "@/components/map/leaflet-setup";
+import { MapContainer, TileLayer, Polyline, useMap } from "react-leaflet";
+import { DepartureTerminalMarker, ArrivalTerminalMarker, VehicleMarker } from "@/components/map/markers";
 import { cn } from "@/lib/utils";
 
 interface Terminal {
@@ -14,6 +14,8 @@ interface Props {
   start: Terminal | null;
   end: Terminal | null;
   userPos: { lat: number; lng: number } | null;
+  heading?: number;
+  polyline?: [number, number][] | null;
   className?: string;
 }
 
@@ -36,15 +38,16 @@ function PanToUser({ pos }: { pos: { lat: number; lng: number } }) {
   return null;
 }
 
-export default function TripMapInner({ start, end, userPos, className }: Props) {
+export default function TripMapInner({ start, end, userPos, heading, polyline, className }: Props) {
   const center: [number, number] = userPos
     ? [userPos.lat, userPos.lng]
     : start
     ? [start.lat, start.lng]
     : [9.025, 38.747];
 
-  const line: [number, number][] =
+  const straightLine: [number, number][] =
     start && end ? [[start.lat, start.lng], [end.lat, end.lng]] : [];
+  const routeLine = polyline && polyline.length > 1 ? polyline : null;
 
   return (
     <div className={cn("h-full w-full", className)}>
@@ -58,24 +61,31 @@ export default function TripMapInner({ start, end, userPos, className }: Props) 
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="© OpenStreetMap contributors"
         />
-        {line.length > 0 && (
+        {routeLine ? (
           <Polyline
-            positions={line}
-            pathOptions={{ color: "#0f6cbd", weight: 4, opacity: 0.7, dashArray: "8 6" }}
+            positions={routeLine}
+            pathOptions={{ color: "#0f6cbd", weight: 4, opacity: 0.85 }}
+          />
+        ) : straightLine.length > 0 && (
+          <Polyline
+            positions={straightLine}
+            pathOptions={{ color: "#0f6cbd", weight: 3, opacity: 0.6, dashArray: "8 6" }}
           />
         )}
         {start && (
-          <Marker position={[start.lat, start.lng]} icon={startIcon}>
-            <Popup>{start.name}</Popup>
-          </Marker>
+          <DepartureTerminalMarker
+            position={[start.lat, start.lng]}
+            label={start.name}
+          />
         )}
         {end && (
-          <Marker position={[end.lat, end.lng]} icon={endIcon}>
-            <Popup>{end.name}</Popup>
-          </Marker>
+          <ArrivalTerminalMarker
+            position={[end.lat, end.lng]}
+            label={end.name}
+          />
         )}
         {userPos && (
-          <Marker position={[userPos.lat, userPos.lng]} icon={userIcon} />
+          <VehicleMarker position={[userPos.lat, userPos.lng]} heading={heading} />
         )}
         {start && end && !userPos && <FitBounds start={start} end={end} />}
         {userPos && <PanToUser pos={userPos} />}
