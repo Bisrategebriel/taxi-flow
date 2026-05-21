@@ -11,6 +11,7 @@ export default function GetLocation({ terminalId }: { terminalId: string }) {
 
   useEffect(() => {
     if (!navigator.geolocation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDenied(true);
       return;
     }
