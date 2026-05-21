@@ -4,7 +4,8 @@ import "leaflet/dist/leaflet.css";
 import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import type L from "leaflet";
-import { pinIcon, userIcon } from "@/components/map/leaflet-setup";
+import { terminalIcon } from "@/components/map/leaflet-setup";
+import UserLocationMarker from "@/components/map/markers/UserLocationMarker";
 import { cn } from "@/lib/utils";
 
 interface Terminal {
@@ -20,15 +21,22 @@ interface Props {
   className?: string;
 }
 
-function FitToBounds({ terminals }: { terminals: Terminal[] }) {
+function FitBounds({
+  terminals,
+  userLocation,
+}: {
+  terminals: Terminal[];
+  userLocation?: { lat: number; lng: number } | null;
+}) {
   const map = useMap();
   useEffect(() => {
-    if (terminals.length === 0) return;
-    const bounds = terminals.map(
-      (t) => [t.lat, t.lng] as L.LatLngTuple
-    );
-    map.fitBounds(bounds, { padding: [32, 32] });
-  }, [map, terminals]);
+    const points: L.LatLngTuple[] = terminals.map((t) => [t.lat, t.lng]);
+    if (userLocation) {
+      points.push([userLocation.lat, userLocation.lng]);
+    }
+    if (points.length === 0) return;
+    map.fitBounds(points, { padding: [32, 32] });
+  }, [map, terminals, userLocation]);
   return null;
 }
 
@@ -46,16 +54,14 @@ export default function TerminalsMapInner({ terminals, userLocation, className }
           attribution="© OpenStreetMap contributors"
         />
         {terminals.map((t) => (
-          <Marker key={t.id} position={[t.lat, t.lng]} icon={pinIcon}>
+          <Marker key={t.id} position={[t.lat, t.lng]} icon={terminalIcon}>
             <Popup>{t.name}</Popup>
           </Marker>
         ))}
         {userLocation && (
-          <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
-            <Popup>Your location</Popup>
-          </Marker>
+          <UserLocationMarker position={[userLocation.lat, userLocation.lng]} />
         )}
-        <FitToBounds terminals={terminals} />
+        <FitBounds terminals={terminals} userLocation={userLocation} />
       </MapContainer>
     </div>
   );
