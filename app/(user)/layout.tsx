@@ -7,6 +7,7 @@ import UserSidebar from "@/components/ui/UserSidebar";
 import BottomNav from "@/components/ui/BottomNav";
 import InstallPrompt from "@/components/ui/InstallPrompt";
 import ActiveTripBanner from "@/components/trip/ActiveTripBanner";
+import ActiveTripSpacer from "@/components/trip/ActiveTripSpacer";
 
 export default async function UserLayout({
   children,
@@ -27,6 +28,7 @@ export default async function UserLayout({
       <ActiveTripBanner />
       <UserSidebar />
       <main className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
+        <ActiveTripSpacer />
         {children}
       </main>
       <BottomNav />

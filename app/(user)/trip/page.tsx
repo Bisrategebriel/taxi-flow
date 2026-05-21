@@ -20,6 +20,7 @@ export default async function TripPage({ searchParams }: PageProps) {
   let end = null;
 
   let initialPolyline: [number, number][] | null = null;
+  let initialDurationS: number | null = null;
 
   if (fromId && toId) {
     const supabase = await createClient();
@@ -36,6 +37,7 @@ export default async function TripPage({ searchParams }: PageProps) {
         { lat: end.lat, lng: end.lng }
       );
       initialPolyline = directions?.polyline ?? null;
+      initialDurationS = directions?.duration_s ?? null;
     }
   }
 
@@ -47,6 +49,7 @@ export default async function TripPage({ searchParams }: PageProps) {
       fareAmount={fare ? parseFloat(fare) : null}
       initialTripId={tripId ?? undefined}
       initialPolyline={initialPolyline}
+      initialDurationS={initialDurationS}
     />
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 // FR-MP-01..06, FR-RS-04
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Polyline, useMap } from "react-leaflet";
-import { DepartureTerminalMarker, ArrivalTerminalMarker } from "@/components/map/markers";
+import { DepartureTerminalMarker, ArrivalTerminalMarker, UserLocationMarker } from "@/components/map/markers";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -27,6 +27,18 @@ function FitBounds({ start, end }: { start: Props["start"]; end: Props["end"] })
 }
 
 export default function RouteMapInner({ start, end, polyline, className }: Props) {
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    const id = navigator.geolocation.watchPosition(
+      (pos) => setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+      () => { /* silently ignore */ },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
+
   const center: [number, number] = [
     (start.lat + end.lat) / 2,
     (start.lng + end.lng) / 2,
@@ -55,6 +67,12 @@ export default function RouteMapInner({ start, end, polyline, className }: Props
         <Polyline positions={line} pathOptions={{ color: "#0f6cbd", weight: 4, opacity: 0.85 }} />
         <DepartureTerminalMarker position={[start.lat, start.lng]} label={start.name} />
         <ArrivalTerminalMarker  position={[end.lat, end.lng]}   label={end.name} />
+        {userPos && (
+          <UserLocationMarker
+            position={[userPos.lat, userPos.lng]}
+            accuracyMeters={userPos.accuracy}
+          />
+        )}
         <FitBounds start={start} end={end} />
       </MapContainer>
     </div>
