@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { X, Share2, MapPin, Clock } from "lucide-react";
 import { useTripTracking } from "@/hooks/useTripTracking";
+import EndTripModal from "./EndTripModal";
 
 const TripMapInner = dynamic(() => import("./TripMapInner"), {
   ssr: false,
@@ -69,6 +70,8 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
   const [distanceM, setDistanceM] = useState(0);
   const [heading, setHeading] = useState(0);
   const [shareToast, setShareToast] = useState(false);
+  const [showEndModal, setShowEndModal] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
   const [locationName, setLocationName] = useState<string | null>(null);
   const [startedAt] = useState(() => new Date());
   const prevPosRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -181,11 +184,22 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
     }
   }, [generateShareToken]);
 
-  async function handleEndTrip() {
+  async function handleConfirmEnd() {
+    if (!tripId) return;
+    setIsEnding(true);
     localStorage.removeItem("taxiflow_active_trip");
-    await endTrip();
-    router.push("/dashboard?tripEnded=1");
-    // Phase 7: router.push("/payment?tripId=" + tripId)
+    try {
+      // Race endTrip against a 10 s timeout so the button never hangs forever
+      await Promise.race([
+        endTrip(),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), 10_000)
+        ),
+      ]);
+    } catch {
+      // DB update failed or timed out — navigate anyway, payment page can handle it
+    }
+    router.push("/payment?tripId=" + tripId);
   }
 
   const coordsLabel =
@@ -316,13 +330,20 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
 
         {/* End Trip */}
         <button
-          onClick={handleEndTrip}
+          onClick={() => setShowEndModal(true)}
           className="w-full h-12 rounded-xl bg-destructive text-sm font-semibold
             text-destructive-foreground transition-colors hover:bg-destructive/90"
         >
           End Trip
         </button>
       </div>
+
+      <EndTripModal
+        open={showEndModal}
+        onClose={() => setShowEndModal(false)}
+        onConfirm={handleConfirmEnd}
+        isLoading={isEnding}
+      />
     </div>
   );
 }
