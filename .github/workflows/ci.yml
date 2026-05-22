@@ -57,6 +57,8 @@ jobs:
     env:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
+      STRIPE_SECRET_KEY: sk_test_placeholder_for_build
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder_for_build
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

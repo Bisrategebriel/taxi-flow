@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Clock,
   Zap,
+  Banknote,
   TrendingUp,
   CheckCircle2,
 } from "lucide-react";
@@ -32,8 +33,8 @@ const QUICK_ACTIONS: QuickAction[] = [
     label: "Search Route",
     href: "/route-search",
     icon: Navigation,
-    iconBg: "bg-primary",
-    iconColor: "text-primary-foreground",
+    iconBg: "bg-muted",
+    iconColor: "text-muted-foreground",
   },
   {
     label: "Nearest Terminal",
@@ -69,7 +70,7 @@ interface Stat {
 const STATS: Stat[] = [
   { label: "Trips", value: "0", icon: TrendingUp, iconColor: "text-emerald-500" },
   { label: "Distance", value: "0 km", icon: Navigation, iconColor: "text-cyan-500" },
-  { label: "Saved", value: "$0", icon: Zap, iconColor: "text-yellow-500" },
+  { label: "Spent", value: "$0", icon: Banknote, iconColor: "text-yellow-500" },
 ];
 
 export default function UserDashboardPage() {
