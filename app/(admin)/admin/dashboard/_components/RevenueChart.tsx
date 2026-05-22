@@ -47,8 +47,9 @@ export default function RevenueChart({ data }: RevenueChartProps) {
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      className="w-full h-full"
-      preserveAspectRatio="xMidYMid meet"
+      width="100%"
+      height="100%"
+      preserveAspectRatio="none"
     >
       <defs>
         <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">

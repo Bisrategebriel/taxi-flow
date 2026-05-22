@@ -1,3 +1,4 @@
+import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   Users,
@@ -13,6 +14,7 @@ import {
   Info,
 } from "lucide-react";
 import RevenueChart, { type MonthlyDataPoint } from "./_components/RevenueChart";
+import GreetingMessage from "./_components/GreetingMessage";
 import WeeklyTripsChart, { type DailyDataPoint } from "./_components/WeeklyTripsChart";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
@@ -40,8 +42,15 @@ const DAY_NAMES   = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /* ─── page ────────────────────────────────────────────────────────────────── */
 
 export default async function AdminDashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const service = createServiceClient();
   const now = new Date();
+
+  const { data: adminProfile } = user
+    ? await service.from("profiles").select("full_name").eq("id", user.id).single()
+    : { data: null };
 
   // time boundaries
   const todayStart   = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -217,10 +226,11 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Subtitle */}
-      <div>
+      {/* Greeting + subtitle */}
+      <div className="space-y-0.5">
+        <GreetingMessage name={adminProfile?.full_name ?? null} />
         <h1 className="text-xl font-semibold">Overview</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Platform performance at a glance</p>
+        <p className="text-sm text-muted-foreground">Platform performance at a glance</p>
       </div>
 
       {/* KPI cards */}
@@ -271,7 +281,7 @@ export default async function AdminDashboardPage() {
               ETB {revenueChartData.reduce((s, d) => s + d.amount, 0).toFixed(0)}
             </span>
           </div>
-          <div className="h-40 text-primary">
+          <div className="h-40 w-full block text-primary">
             <RevenueChart data={revenueChartData} />
           </div>
         </div>
@@ -287,7 +297,7 @@ export default async function AdminDashboardPage() {
               {tripsChartData.reduce((s, d) => s + d.count, 0)} total
             </span>
           </div>
-          <div className="h-40 text-primary">
+          <div className="h-40 w-full block text-primary">
             <WeeklyTripsChart data={tripsChartData} />
           </div>
         </div>

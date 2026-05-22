@@ -36,8 +36,9 @@ export default function WeeklyTripsChart({ data }: WeeklyTripsChartProps) {
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      className="w-full h-full"
-      preserveAspectRatio="xMidYMid meet"
+      width="100%"
+      height="100%"
+      preserveAspectRatio="none"
     >
       {/* Grid lines */}
       {yTicks.map((t) => (
