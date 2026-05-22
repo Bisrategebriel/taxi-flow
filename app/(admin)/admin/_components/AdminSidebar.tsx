@@ -11,18 +11,22 @@ import {
   DollarSign,
   Car,
   CreditCard,
+  Bot,
+  Settings,
   LogOut,
 } from "lucide-react";
 import { signout } from "@/app/auth/signout/actions";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Users", href: "/admin/users", icon: Users },
-  { label: "Terminals", href: "/admin/terminals", icon: MapPin },
-  { label: "Routes", href: "/admin/routes", icon: Navigation },
-  { label: "Fares", href: "/admin/fares", icon: DollarSign },
-  { label: "Trips", href: "/admin/trips", icon: Car },
-  { label: "Payments", href: "/admin/payments", icon: CreditCard },
+  { label: "Dashboard",       href: "/admin/dashboard", icon: LayoutDashboard },
+  { label: "Users",           href: "/admin/users",     icon: Users },
+  { label: "Terminals",       href: "/admin/terminals", icon: MapPin },
+  { label: "Routes",          href: "/admin/routes",    icon: Navigation },
+  { label: "Fares & Distances", href: "/admin/fares",   icon: DollarSign },
+  { label: "Trip Monitoring", href: "/admin/trips",     icon: Car },
+  { label: "Payments",        href: "/admin/payments",  icon: CreditCard },
+  { label: "AI Chat Control", href: "/admin/ai-chat",   icon: Bot },
+  { label: "System Settings", href: "/admin/settings",  icon: Settings },
 ];
 
 interface AdminSidebarProps {
@@ -30,23 +34,30 @@ interface AdminSidebarProps {
   email: string;
 }
 
-export default function AdminSidebar({ role, email }: AdminSidebarProps) {
+export default function AdminSidebar({ email }: AdminSidebarProps) {
   const pathname = usePathname();
 
   return (
     <nav
       aria-label="Admin navigation"
-      className="hidden md:flex flex-col w-56 lg:w-64 shrink-0 border-r border-border bg-background min-h-screen"
+      className="hidden md:flex flex-col w-60 lg:w-64 shrink-0 border-r border-border bg-card min-h-screen"
     >
-      <div className="flex items-center gap-2 px-4 py-5 border-b border-border">
-        <Link href="/admin/dashboard" className="text-lg font-bold tracking-tight">
-          <span className="text-primary">Taxi</span>
-          <span className="text-foreground">Flow</span>
-        </Link>
-        <span className="text-xs text-muted-foreground font-medium">Admin</span>
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-border">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+          <span className="text-xs font-bold text-primary-foreground">TF</span>
+        </div>
+        <div>
+          <p className="text-sm font-bold leading-none">
+            <span className="text-primary">Taxi</span>
+            <span className="text-foreground">Flow</span>
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">Admin Console</p>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-1 p-3 flex-1">
+      {/* Nav links */}
+      <div className="flex flex-col gap-0.5 p-3 flex-1">
         {NAV_ITEMS.map((item) => {
           const active =
             item.href === "/admin/dashboard"
@@ -58,33 +69,29 @@ export default function AdminSidebar({ role, email }: AdminSidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors border-l-2",
                 active
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-primary/10 text-primary border-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground border-transparent"
               )}
             >
-              <Icon size={18} strokeWidth={1.75} />
+              <Icon size={17} strokeWidth={1.75} />
               {item.label}
             </Link>
           );
         })}
       </div>
 
-      <div className="p-3 border-t border-border space-y-2">
-        <div className="px-3 py-2">
-          <p className="text-xs text-muted-foreground truncate">{email}</p>
-          <span className="inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide bg-primary/10 text-primary">
-            {role}
-          </span>
-        </div>
+      {/* Sign out */}
+      <div className="p-3 border-t border-border">
+        <p className="px-3 mb-2 text-xs text-muted-foreground truncate">{email}</p>
         <form action={signout}>
           <button
             type="submit"
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors border-l-2 border-transparent"
           >
-            <LogOut size={18} strokeWidth={1.75} />
-            Sign out
+            <LogOut size={17} strokeWidth={1.75} />
+            Sign Out
           </button>
         </form>
       </div>
