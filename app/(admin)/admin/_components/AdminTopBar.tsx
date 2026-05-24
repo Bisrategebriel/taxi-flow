@@ -56,6 +56,7 @@ export default function AdminTopBar({ fullName, role, notifications }: AdminTopB
   const pathname = usePathname();
   const [bellOpen, setBellOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [hasRead, setHasRead] = useState(false);
 
   const bellRef  = useRef<HTMLDivElement>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
@@ -123,7 +124,7 @@ export default function AdminTopBar({ fullName, role, notifications }: AdminTopB
             className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <Bell size={17} />
-            {notifications.length > 0 && (
+            {!hasRead && notifications.length > 0 && (
               <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
             )}
           </button>
@@ -132,14 +133,24 @@ export default function AdminTopBar({ fullName, role, notifications }: AdminTopB
             <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-border bg-card shadow-xl z-50">
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                 <p className="text-sm font-semibold">Notifications</p>
-                <span className="text-xs text-muted-foreground">{notifications.length} recent</span>
+                {!hasRead && notifications.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setHasRead(true)}
+                    className="text-xs text-primary hover:underline font-medium"
+                  >
+                    Mark all as read
+                  </button>
+                ) : (
+                  <span className="text-xs text-muted-foreground">{notifications.length} total</span>
+                )}
               </div>
-              <div className="divide-y divide-border max-h-80 overflow-y-auto">
+              <div className="divide-y divide-border max-h-80 overflow-y-auto scrollbar-thin">
                 {notifications.map((n) => {
                   const NIcon = NotifIcon(n.type);
                   const BIcon = BadgeIcon(n.badge);
                   return (
-                    <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-muted/40 transition-colors">
+                    <div key={n.id} className={`flex items-start gap-3 px-4 py-3 hover:bg-muted/40 transition-colors ${hasRead ? "opacity-50" : ""}`}>
                       <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
                         <NIcon size={13} className="text-primary" />
                       </div>
