@@ -177,9 +177,10 @@ INSERT INTO public.distances (from_terminal_id, to_terminal_id, distance_km, dur
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.system_settings (key, value, description) VALUES
-  ('ai_chat_enabled',        'true',  'Enable AI chatbot for all users'),
-  ('registration_enabled',   'true',  'Allow new user registrations'),
-  ('login_enabled',          'true',  'Allow user logins'),
-  ('maintenance_mode',       'false', 'Show maintenance page to non-admin users'),
-  ('share_tracking_enabled', 'true',  'Allow users to share trip tracking links'),
-  ('announcement',           'null',  'Broadcast announcement to all users (null = none)');
+  ('ai_chat_enabled',           'true',  'Enable AI chatbot for all users'),
+  ('registration_enabled',      'true',  'Allow new user registrations'),
+  ('login_enabled',             'true',  'Allow user logins'),
+  ('maintenance_mode',          'false', 'Show maintenance page to non-admin users'),
+  ('share_tracking_enabled',    'true',  'Allow users to share trip tracking links'),
+  ('announcement',              'null',  'Broadcast announcement to all users (null = none)'),
+  ('session_timeout_minutes',   '0',     'Session inactivity timeout in minutes (0 = disabled)');
