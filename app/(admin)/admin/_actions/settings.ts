@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Json } from "@/types/database.types";
@@ -117,6 +118,23 @@ export async function toggleSetting(key: string, enabled: boolean): Promise<void
   await service
     .from("system_settings")
     .upsert({ key, value: enabled as Json, updated_by: user.id }, { onConflict: "key" });
+
+  // Sync maintenance mode to a cookie so proxy.ts can gate requests without a DB call.
+  if (key === "maintenance_mode") {
+    const cookieStore = await cookies();
+    if (enabled) {
+      cookieStore.set("tf_maintenance", "1", {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 365,
+      });
+    } else {
+      cookieStore.delete("tf_maintenance");
+    }
+  }
+
   revalidatePath("/admin/settings");
+  revalidatePath("/admin/super-admin");
   revalidatePath("/");
 }

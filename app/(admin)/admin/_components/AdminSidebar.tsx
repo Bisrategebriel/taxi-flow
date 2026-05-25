@@ -16,6 +16,8 @@ import {
   Settings,
   Bell,
   LogOut,
+  ShieldAlert,
+  ClipboardList,
 } from "lucide-react";
 import { signout } from "@/app/auth/signout/actions";
 
@@ -32,13 +34,40 @@ const NAV_ITEMS = [
   { label: "System Settings",   href: "/admin/settings",       icon: Settings },
 ];
 
+const SUPER_ADMIN_NAV = [
+  { label: "Super Admin",       href: "/admin/super-admin",   icon: ShieldAlert },
+  { label: "Audit Log",         href: "/admin/audit-logs",    icon: ClipboardList },
+];
+
 interface AdminSidebarProps {
   role: string;
   email: string;
 }
 
-export default function AdminSidebar({ email }: AdminSidebarProps) {
+export default function AdminSidebar({ role, email }: AdminSidebarProps) {
   const pathname = usePathname();
+
+  function navLink(href: string, label: string, Icon: React.ElementType) {
+    const active =
+      href === "/admin/dashboard"
+        ? pathname === "/admin/dashboard"
+        : pathname.startsWith(href);
+    return (
+      <Link
+        key={href}
+        href={href}
+        className={cn(
+          "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors border-l-2",
+          active
+            ? "bg-primary/10 text-primary border-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground border-transparent"
+        )}
+      >
+        <Icon size={17} strokeWidth={1.75} />
+        {label}
+      </Link>
+    );
+  }
 
   return (
     <nav
@@ -67,28 +96,19 @@ export default function AdminSidebar({ email }: AdminSidebarProps) {
 
       {/* Nav links */}
       <div className="flex flex-col gap-0.5 p-3 flex-1">
-        {NAV_ITEMS.map((item) => {
-          const active =
-            item.href === "/admin/dashboard"
-              ? pathname === "/admin/dashboard"
-              : pathname.startsWith(item.href);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors border-l-2",
-                active
-                  ? "bg-primary/10 text-primary border-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground border-transparent"
-              )}
-            >
-              <Icon size={17} strokeWidth={1.75} />
-              {item.label}
-            </Link>
-          );
-        })}
+        {NAV_ITEMS.map((item) => navLink(item.href, item.label, item.icon))}
+
+        {/* Super Admin section — only visible to super_admin role */}
+        {role === "super_admin" && (
+          <>
+            <div className="px-3 pt-4 pb-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Super Admin
+              </p>
+            </div>
+            {SUPER_ADMIN_NAV.map((item) => navLink(item.href, item.label, item.icon))}
+          </>
+        )}
       </div>
 
       {/* Sign out */}
