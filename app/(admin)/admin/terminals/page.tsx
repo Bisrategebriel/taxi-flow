@@ -1,76 +1,60 @@
-import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/service";
-import { Plus, Pencil } from "lucide-react";
-import ToggleActiveButton from "./_components/ToggleActiveButton";
+import AddTerminalModal from "./_components/AddTerminalModal";
+import ImportTerminalsButton from "./_components/ImportTerminalsButton";
+import ExportTerminalsButton from "./_components/ExportTerminalsButton";
+import TerminalListPanel, { type TerminalItem } from "./_components/TerminalListPanel";
 
 export default async function AdminTerminalsPage() {
   const service = createServiceClient();
-  const { data: terminals } = await service
-    .from("terminals")
-    .select("id, name, city, lat, lng, is_active")
-    .order("name");
+
+  const [{ data: terminals }, { data: routes }] = await Promise.all([
+    service
+      .from("terminals")
+      .select("id, name, city, lat, lng, is_active")
+      .order("name"),
+    service.from("routes").select("id, start_terminal_id, end_terminal_id"),
+  ]);
+
+  /* ── route count per terminal ────────────────────────────────────────────── */
+  const routeCounts: Record<string, number> = {};
+  for (const r of routes ?? []) {
+    if (r.start_terminal_id)
+      routeCounts[r.start_terminal_id] = (routeCounts[r.start_terminal_id] ?? 0) + 1;
+    if (r.end_terminal_id)
+      routeCounts[r.end_terminal_id] = (routeCounts[r.end_terminal_id] ?? 0) + 1;
+  }
+
+  const items: TerminalItem[] = (terminals ?? []).map((t) => ({
+    ...t,
+    routeCount: routeCounts[t.id] ?? 0,
+  }));
+
+  const activeCount = items.filter((t) => t.is_active).length;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6 space-y-5">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold">Terminals</h1>
-          <p className="text-sm text-muted-foreground mt-1">{terminals?.length ?? 0} terminals</p>
+          <h1 className="text-2xl font-bold">Terminals</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {items.length} terminal{items.length !== 1 ? "s" : ""} across the network
+            {activeCount < items.length && (
+              <span className="ml-2 text-amber-600 dark:text-amber-400">
+                · {items.length - activeCount} inactive
+              </span>
+            )}
+          </p>
         </div>
-        <Link
-          href="/admin/terminals/new"
-          className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Plus size={16} />
-          New Terminal
-        </Link>
+        <div className="flex items-center gap-2">
+          <ImportTerminalsButton />
+          <ExportTerminalsButton />
+          <AddTerminalModal />
+        </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">City</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Lat</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Lng</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(terminals ?? []).map((t) => (
-                <tr key={t.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium">{t.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{t.city}</td>
-                  <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{t.lat}</td>
-                  <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{t.lng}</td>
-                  <td className="px-4 py-3">
-                    <ToggleActiveButton id={t.id} isActive={t.is_active} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/admin/terminals/${t.id}/edit`}
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <Pencil size={13} />
-                      Edit
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-              {(terminals ?? []).length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                    No terminals yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* ── List ───────────────────────────────────────────────────────────── */}
+      <TerminalListPanel terminals={items} />
     </div>
   );
 }

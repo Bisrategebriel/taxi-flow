@@ -49,10 +49,10 @@ export default function AdminSidebar({ email }: AdminSidebarProps) {
       <div className="flex items-center gap-2.5 px-4 py-4 border-b border-border shrink-0">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden bg-background">
           <Image
-            src="/taxiflow-logo.png"
+            src="/taxiflow-bg-blue.png"
             alt="TaxiFlow"
-            width={32}
-            height={32}
+            width={84}
+            height={84}
             className="object-contain w-full h-full"
           />
         </div>

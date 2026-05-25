@@ -229,7 +229,7 @@ export default async function AdminDashboardPage() {
       {/* Greeting + subtitle */}
       <div className="space-y-0.5">
         <GreetingMessage name={adminProfile?.full_name ?? null} />
-        <h1 className="text-xl font-semibold">Overview</h1>
+        <h1 className="text-xl font-semibold my-3">Overview</h1>
         <p className="text-sm text-muted-foreground">Platform performance at a glance</p>
       </div>
 
@@ -281,7 +281,7 @@ export default async function AdminDashboardPage() {
               ETB {revenueChartData.reduce((s, d) => s + d.amount, 0).toFixed(0)}
             </span>
           </div>
-          <div className="h-40 w-full block text-primary">
+          <div className="h-56 w-full block text-primary">
             <RevenueChart data={revenueChartData} />
           </div>
         </div>
@@ -297,7 +297,7 @@ export default async function AdminDashboardPage() {
               {tripsChartData.reduce((s, d) => s + d.count, 0)} total
             </span>
           </div>
-          <div className="h-40 w-full block text-primary">
+          <div className="h-56 w-full block text-primary">
             <WeeklyTripsChart data={tripsChartData} />
           </div>
         </div>

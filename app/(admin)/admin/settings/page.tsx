@@ -1,16 +1,28 @@
-import { Settings } from "lucide-react";
+import { fetchSettings } from "@/app/(admin)/admin/_actions/settings";
+import GeneralCard from "./_components/GeneralCard";
+import LandingPageCard from "./_components/LandingPageCard";
+import FeatureTogglesCard from "./_components/FeatureTogglesCard";
+import { SecurityCard, DangerZoneCard } from "./_components/SecurityCard";
 
-export default function AdminSettingsPage() {
+export default async function AdminSettingsPage() {
+  const settings = await fetchSettings();
+
   return (
-    <div className="flex flex-1 items-center justify-center p-12">
-      <div className="text-center space-y-3">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-          <Settings size={28} className="text-primary" />
-        </div>
-        <h2 className="text-lg font-semibold">System Settings</h2>
-        <p className="text-sm text-muted-foreground max-w-xs">
-          Platform configuration, feature flags, and super-admin controls — coming in Phase 9.
+    <div className="p-6 space-y-5">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-semibold">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Platform configuration and feature toggles
         </p>
+      </div>
+
+      <div className="w-3/4 space-y-5">
+        <GeneralCard settings={settings} />
+        <LandingPageCard settings={settings} />
+        <FeatureTogglesCard settings={settings} />
+        <SecurityCard settings={settings} />
+        <DangerZoneCard settings={settings} />
       </div>
     </div>
   );

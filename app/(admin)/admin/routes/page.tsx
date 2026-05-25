@@ -1,82 +1,96 @@
-import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/service";
-import { Plus, Pencil } from "lucide-react";
-import ToggleRouteButton from "./_components/ToggleRouteButton";
+import AddRouteModal from "./_components/AddRouteModal";
+import ImportRoutesButton from "./_components/ImportRoutesButton";
+import ExportRoutesButton from "./_components/ExportRoutesButton";
+import RoutesView from "./_components/RoutesView";
+import type { RouteItem } from "./_components/RouteListPanel";
 
 export default async function AdminRoutesPage() {
   const service = createServiceClient();
-  const { data: routes } = await service
-    .from("routes")
-    .select(
-      `id, name, is_active,
-       start:terminals!routes_start_terminal_id_fkey(name),
-       end:terminals!routes_end_terminal_id_fkey(name)`
-    )
-    .order("name");
+
+  const [{ data: routesRaw }, { data: fares }, { data: distances }, { data: terminals }] =
+    await Promise.all([
+      service
+        .from("routes")
+        .select(
+          `id, name, is_active, intermediate_stops,
+           start_terminal_id, end_terminal_id,
+           start:terminals!routes_start_terminal_id_fkey(id, name),
+           end:terminals!routes_end_terminal_id_fkey(id, name)`
+        )
+        .order("name"),
+      service
+        .from("fares")
+        .select("id, route_id, amount")
+        .order("effective_from", { ascending: false }),
+      service.from("distances").select("from_terminal_id, to_terminal_id, distance_km"),
+      service.from("terminals").select("id, name, city").order("name"),
+    ]);
+
+  /* ── build lookup maps ────────────────────────────────────────────────────── */
+  const fareMap = new Map<string, { id: string; amount: number }>();
+  for (const f of fares ?? []) {
+    if (!fareMap.has(f.route_id)) fareMap.set(f.route_id, { id: f.id, amount: f.amount });
+  }
+
+  const distMap = new Map<string, number>();
+  for (const d of distances ?? []) {
+    distMap.set(`${d.from_terminal_id}-${d.to_terminal_id}`, d.distance_km);
+  }
+
+  const terminalNameMap = new Map((terminals ?? []).map((t) => [t.id, t.name]));
+
+  /* ── merge into RouteItem[] ───────────────────────────────────────────────── */
+  const routes: RouteItem[] = (routesRaw ?? []).map((r) => {
+    const start = r.start as { id: string; name: string } | null;
+    const end = r.end as { id: string; name: string } | null;
+    const fare = fareMap.get(r.id);
+    const dist = distMap.get(`${r.start_terminal_id}-${r.end_terminal_id}`) ?? null;
+    const viaIds: string[] = r.intermediate_stops ?? [];
+    const viaDisplay = viaIds.map((id) => terminalNameMap.get(id) ?? id).join(", ");
+
+    return {
+      id: r.id,
+      name: r.name,
+      is_active: r.is_active,
+      start_terminal_id: r.start_terminal_id,
+      end_terminal_id: r.end_terminal_id,
+      startName: start?.name ?? "—",
+      endName: end?.name ?? "—",
+      via: viaDisplay,
+      via_ids: viaIds,
+      distance_km: dist,
+      fare_etb: fare?.amount ?? null,
+      fareId: fare?.id ?? null,
+    };
+  });
+
+  const activeCount = routes.filter((r) => r.is_active).length;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6 space-y-5">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold">Routes</h1>
-          <p className="text-sm text-muted-foreground mt-1">{routes?.length ?? 0} routes</p>
+          <h1 className="text-2xl font-bold">Routes</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {routes.length} route{routes.length !== 1 ? "s" : ""} configured
+            {activeCount < routes.length && (
+              <span className="ml-2 text-amber-600 dark:text-amber-400">
+                · {routes.length - activeCount} inactive
+              </span>
+            )}
+          </p>
         </div>
-        <Link
-          href="/admin/routes/new"
-          className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Plus size={16} />
-          New Route
-        </Link>
+        <div className="flex items-center gap-2">
+          <ImportRoutesButton />
+          <ExportRoutesButton />
+          <AddRouteModal terminals={terminals ?? []} />
+        </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Start Terminal</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">End Terminal</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(routes ?? []).map((r) => {
-                const start = r.start as { name: string } | null;
-                const end = r.end as { name: string } | null;
-                return (
-                  <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-3 font-medium">{r.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{start?.name ?? "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{end?.name ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <ToggleRouteButton id={r.id} isActive={r.is_active} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/admin/routes/${r.id}/edit`}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Pencil size={13} />
-                        Edit
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-              {(routes ?? []).length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                    No routes yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* ── Route list ─────────────────────────────────────────────────────── */}
+      <RoutesView routes={routes} terminals={terminals ?? []} />
     </div>
   );
 }

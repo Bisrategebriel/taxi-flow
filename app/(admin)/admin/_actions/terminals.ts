@@ -36,6 +36,8 @@ export type TerminalFormState = {
   message?: string;
 };
 
+/* ── existing form-action mutations (kept for /new and /[id]/edit pages) ─── */
+
 export async function createTerminal(
   _prev: TerminalFormState,
   formData: FormData
@@ -96,4 +98,138 @@ export async function toggleTerminalActive(id: string, current: boolean) {
   const service = createServiceClient();
   await service.from("terminals").update({ is_active: !current }).eq("id", id);
   revalidatePath("/admin/terminals");
+}
+
+/* ── new modal-friendly mutation ─────────────────────────────────────────── */
+
+export async function addTerminal(data: {
+  name: string;
+  city: string;
+  lat: string | number;
+  lng: string | number;
+  is_active?: boolean;
+}): Promise<{ error: string } | { success: true }> {
+  await assertAdmin();
+
+  const parsed = TerminalSchema.safeParse({
+    name: data.name,
+    city: data.city,
+    lat: data.lat,
+    lng: data.lng,
+    is_active: data.is_active ?? true,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const service = createServiceClient();
+  const { error } = await service.from("terminals").insert({
+    name: parsed.data.name,
+    city: parsed.data.city,
+    lat: parsed.data.lat,
+    lng: parsed.data.lng,
+    is_active: parsed.data.is_active,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/terminals");
+  return { success: true };
+}
+
+export async function editTerminal(
+  id: string,
+  data: {
+    name: string;
+    city: string;
+    lat: string | number;
+    lng: string | number;
+    is_active?: boolean;
+  }
+): Promise<{ error: string } | { success: true }> {
+  await assertAdmin();
+
+  const parsed = TerminalSchema.safeParse({
+    name: data.name,
+    city: data.city,
+    lat: data.lat,
+    lng: data.lng,
+    is_active: data.is_active ?? true,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const service = createServiceClient();
+  const { error } = await service.from("terminals").update({
+    name: parsed.data.name,
+    city: parsed.data.city,
+    lat: parsed.data.lat,
+    lng: parsed.data.lng,
+    is_active: parsed.data.is_active,
+  }).eq("id", id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/terminals");
+  return { success: true };
+}
+
+/* ── bulk import / export ─────────────────────────────────────────────────── */
+
+export async function importTerminals(
+  terminals: Array<{ name: string; city: string; lat: number; lng: number }>
+): Promise<{ results: Array<{ name: string; success: boolean; error?: string }> }> {
+  await assertAdmin();
+  const service = createServiceClient();
+  const results: Array<{ name: string; success: boolean; error?: string }> = [];
+
+  for (const t of terminals) {
+    if (!t.name || isNaN(t.lat) || isNaN(t.lng)) {
+      results.push({ name: t.name ?? "unknown", success: false, error: "Missing required fields" });
+      continue;
+    }
+    const { error } = await service.from("terminals").insert({
+      name: t.name,
+      city: t.city || "",
+      lat: t.lat,
+      lng: t.lng,
+      is_active: true,
+    });
+    if (error) {
+      results.push({ name: t.name, success: false, error: error.message });
+    } else {
+      results.push({ name: t.name, success: true });
+    }
+  }
+
+  revalidatePath("/admin/terminals");
+  return { results };
+}
+
+export async function exportTerminals(): Promise<{ csv: string }> {
+  await assertAdmin();
+  const service = createServiceClient();
+  const { data: terminals } = await service
+    .from("terminals")
+    .select("name, city, address, lat, lng, is_active")
+    .order("name");
+
+  const rows = (terminals ?? []).map((t) => [
+    `"${t.name.replace(/"/g, '""')}"`,
+    `"${t.city.replace(/"/g, '""')}"`,
+    `"${(t.address ?? "").replace(/"/g, '""')}"`,
+    t.lat.toString(),
+    t.lng.toString(),
+    `"${t.is_active ? "active" : "inactive"}"`,
+  ]);
+
+  const csv = [
+    "name,city,address,lat,lng,status",
+    ...rows.map((r) => r.join(",")),
+  ].join("\n");
+
+  return { csv };
 }

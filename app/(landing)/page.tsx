@@ -7,6 +7,32 @@ import { buttonVariants } from "@/components/ui/Button";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+
+// ── Settings helper ───────────────────────────────────────────────────────────
+
+async function getLandingSettings() {
+  try {
+    const service = createServiceClient();
+    const { data } = await service
+      .from("system_settings")
+      .select("key, value")
+      .in("key", [
+        "landing_hero_headline",
+        "landing_hero_subtitle",
+        "landing_cta_text",
+        "landing_show_features",
+        "landing_show_how_it_works",
+        "landing_contact_phone",
+        "landing_contact_address",
+      ]);
+    const map: Record<string, unknown> = {};
+    for (const row of data ?? []) map[row.key] = row.value;
+    return map;
+  } catch {
+    return {};
+  }
+}
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -147,6 +173,31 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
 export default async function LandingPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const ls = await getLandingSettings();
+
+  let isAdmin = false;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    isAdmin = profile?.role === "admin" || profile?.role === "super_admin";
+  }
+
+  const str = (key: string, fallback: string) =>
+    typeof ls[key] === "string" ? (ls[key] as string) : fallback;
+  const bool = (key: string, fallback = true) =>
+    typeof ls[key] === "boolean" ? (ls[key] as boolean) : fallback;
+
+  const heroHeadline = str("landing_hero_headline", "Navigate the city with confidence");
+  const heroSubtitle = str(
+    "landing_hero_subtitle",
+    "TaxiFlow maps Addis Ababa's shared taxi network. Search routes, check live fares, share your trip, and pay — all from one app."
+  );
+  const ctaText = str("landing_cta_text", "Get Started — It's Free");
+  const showFeatures = bool("landing_show_features");
+  const showHowItWorks = bool("landing_show_how_it_works");
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -172,9 +223,16 @@ export default async function LandingPage() {
                 <ThemeToggle />
               </Suspense>
               {user ? (
-                <Link href="/dashboard" className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
-                  Dashboard <IconArrowRight />
-                </Link>
+                <div className="flex items-center gap-2">
+                  {isAdmin && (
+                    <Link href="/admin/dashboard" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}>
+                      Admin Dashboard <IconArrowRight />
+                    </Link>
+                  )}
+                  <Link href="/dashboard" className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
+                    Dashboard <IconArrowRight />
+                  </Link>
+                </div>
               ) : (
                 <>
                   <Link href="/auth/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
@@ -276,23 +334,16 @@ export default async function LandingPage() {
               </div>
 
               <h1 className="text-5xl font-bold leading-tight tracking-tight md:text-6xl">
-                Navigate the city{" "}
-                <span
-                  className="bg-clip-text text-transparent"
-                  style={{ backgroundImage: "linear-gradient(135deg, oklch(0.65 0.12 242), oklch(0.75 0.1 200))" }}
-                >
-                  with confidence
-                </span>
+                {heroHeadline}
               </h1>
 
               <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
-                TaxiFlow maps Addis Ababa&apos;s shared taxi network. Search routes, check live fares,
-                share your trip, and pay — all from one app.
+                {heroSubtitle}
               </p>
 
               <div className="mt-10 flex flex-wrap gap-4">
                 <Link href="/auth/register" className={cn(buttonVariants({ size: "lg" }), "gap-2 px-8 transition-shadow duration-300 hover:shadow-[0_0_22px_oklch(0.65_0.12_242/0.45)]")}>
-                  Get Started — It&apos;s Free <IconArrowRight />
+                  {ctaText} <IconArrowRight />
                 </Link>
                 <Link href="/auth/login" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "px-8")}>
                   Sign In
@@ -336,10 +387,10 @@ export default async function LandingPage() {
 
                   <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-4">
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>8.5 km</span>
-                      <span>~25 min</span>
+                      <span>10.5 km</span>
+                      <span>~ 45 min</span>
                     </div>
-                    <span className="font-bold text-primary">18 ETB</span>
+                    <span className="font-bold text-primary">60 ETB</span>
                   </div>
                 </CardContent>
               </Card>
@@ -348,12 +399,12 @@ export default async function LandingPage() {
               <Card className="mt-3 border-border/60 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_18px_oklch(0.65_0.12_242/0.15)]">
                 <CardContent className="flex items-center justify-between p-4">
                   <div>
-                    <p className="text-xs text-muted-foreground">Next departure</p>
+                    <p className="text-xs text-muted-foreground">Next Station</p>
                     <p className="text-sm font-medium text-foreground">In 3 minutes</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Seats available</p>
-                    <p className="text-sm font-medium text-emerald-400">4 left</p>
+                    <p className="text-xs text-muted-foreground">Stations Until Destination</p>
+                    <p className="text-sm font-medium text-emerald-400">4 Stations</p>
                   </div>
                 </CardContent>
               </Card>
@@ -425,7 +476,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Features (FR-LP-03, FR-LP-04) ────────────────────────────────── */}
-      <section id="features" className="relative py-24">
+      {showFeatures && <section id="features" className="relative py-24">
         <Container maxWidth="2xl">
           <div className="mb-14 text-center">
             <p className="mb-3 text-sm font-medium uppercase tracking-widest text-primary">Features</p>
@@ -444,10 +495,10 @@ export default async function LandingPage() {
             <FeatureCard icon={<IconShield />} title="Trip History" description="Every trip is logged automatically. Review your routes, fares, and travel time anytime." />
           </div>
         </Container>
-      </section>
+      </section>}
 
       {/* ── How it works (FR-LP-05, FR-LP-06) ────────────────────────────── */}
-      <section id="how-it-works" className="border-y border-border/40 bg-muted/20 py-24">
+      {showHowItWorks && <section id="how-it-works" className="border-y border-border/40 bg-muted/20 py-24">
         <Container maxWidth="2xl">
           <div className="mb-14 text-center">
             <p className="mb-3 text-sm font-medium uppercase tracking-widest text-primary">How It Works</p>
@@ -472,7 +523,7 @@ export default async function LandingPage() {
             ))}
           </div>
         </Container>
-      </section>
+      </section>}
 
       {/* ── About / stats (FR-LP-07, FR-LP-08) ───────────────────────────── */}
       <section id="about" className="py-24">
