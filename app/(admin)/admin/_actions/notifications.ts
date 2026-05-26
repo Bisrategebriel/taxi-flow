@@ -34,6 +34,15 @@ async function assertAdmin() {
 
 export type SendNotifState = { error?: string; success?: boolean };
 
+export type UserNotifFull = {
+  id: string;
+  title: string;
+  body: string;
+  type: string;
+  created_at: string;
+  read: boolean;
+};
+
 export async function searchUsersByName(
   query: string
 ): Promise<{ id: string; full_name: string }[]> {
@@ -94,8 +103,7 @@ export async function sendAdminNotification(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = service as any;
-  const { error } = await db.from("admin_notifications").insert({
+  const { error } = await (service as any).from("admin_notifications").insert({
     title,
     body,
     type,
@@ -109,4 +117,134 @@ export async function sendAdminNotification(
 
   revalidatePath("/admin/notifications");
   return { success: true };
+}
+
+// ── User-facing notification queries ─────────────────────────────────────────
+
+const THIRTY_DAYS_AGO = () =>
+  new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+/** Fetch all admin notifications visible to the current user (last 30 days). */
+export async function getUserNotifications(): Promise<UserNotifFull[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const service = createServiceClient();
+  const [{ data: allNotifs }, { data: myReads }] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (service as any)
+      .from("admin_notifications")
+      .select("id, title, body, type, target, created_at")
+      .gte("created_at", THIRTY_DAYS_AGO())
+      .order("created_at", { ascending: false }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (service as any)
+      .from("notification_reads")
+      .select("notification_id")
+      .eq("user_id", user.id),
+  ]);
+
+  const readSet = new Set<string>(
+    (myReads ?? []).map(
+      (r: { notification_id: string }) => r.notification_id
+    )
+  );
+
+  return (allNotifs ?? [])
+    .filter(
+      (n: { target: string }) =>
+        n.target === "all" ||
+        n.target === "active" ||
+        n.target === user.id
+    )
+    .map(
+      (n: {
+        id: string;
+        title: string;
+        body: string;
+        type: string;
+        created_at: string;
+      }) => ({
+        id: n.id,
+        title: n.title,
+        body: n.body,
+        type: n.type,
+        created_at: n.created_at,
+        read: readSet.has(n.id),
+      })
+    );
+}
+
+/** Mark all visible unread notifications as read for the current user. */
+export async function markAllNotificationsRead(): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const service = createServiceClient();
+  const [{ data: allNotifs }, { data: myReads }] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (service as any)
+      .from("admin_notifications")
+      .select("id, target")
+      .gte("created_at", THIRTY_DAYS_AGO()),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (service as any)
+      .from("notification_reads")
+      .select("notification_id")
+      .eq("user_id", user.id),
+  ]);
+
+  const readSet = new Set<string>(
+    (myReads ?? []).map(
+      (r: { notification_id: string }) => r.notification_id
+    )
+  );
+
+  const unreadIds = (allNotifs ?? [])
+    .filter(
+      (n: { id: string; target: string }) =>
+        (n.target === "all" ||
+          n.target === "active" ||
+          n.target === user.id) &&
+        !readSet.has(n.id)
+    )
+    .map((n: { id: string }) => n.id);
+
+  if (unreadIds.length === 0) return;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (service as any)
+    .from("notification_reads")
+    .upsert(
+      unreadIds.map((id: string) => ({
+        notification_id: id,
+        user_id: user.id,
+      })),
+      { onConflict: "notification_id,user_id" }
+    );
+}
+
+/** Mark a notification as read/dismissed for the current user. */
+export async function dismissNotification(notificationId: string): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const service = createServiceClient();
+  // Upsert so duplicate dismissals are harmless; trigger increments read_count on first insert.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (service as any)
+    .from("notification_reads")
+    .upsert(
+      { notification_id: notificationId, user_id: user.id },
+      { onConflict: "notification_id,user_id" }
+    );
 }
