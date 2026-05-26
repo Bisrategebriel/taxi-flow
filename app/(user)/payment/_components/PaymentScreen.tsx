@@ -83,8 +83,7 @@ type PaymentMethod = "card" | "mobile_money" | "cash";
 
 interface Breakdown {
   baseFare: number;
-  serviceFee: number;
-  distSurcharge: number;
+  vat: number;
   total: number;
 }
 
@@ -214,8 +213,7 @@ export default function PaymentScreen({ trip, breakdown, cancelled }: Props) {
           </CardHeader>
           <CardContent className="space-y-2 pt-3">
             <ReceiptLine label="Base fare" value={`ETB ${breakdown.baseFare.toFixed(2)}`} />
-            <ReceiptLine label="Service fee" value={`ETB ${breakdown.serviceFee.toFixed(2)}`} />
-            <ReceiptLine label="Distance surcharge" value={`ETB ${breakdown.distSurcharge.toFixed(2)}`} />
+            <ReceiptLine label="VAT (15%)" value={`ETB ${breakdown.vat.toFixed(2)}`} />
             <div className="border-t border-border pt-2" />
             <div className="flex justify-between text-base font-bold">
               <span>Total</span>

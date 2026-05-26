@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Route, Search, Pencil } from "lucide-react";
+import { Route, Search, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import ToggleRouteButton from "./ToggleRouteButton";
 import EditRouteModal, { type RouteEditData } from "./EditRouteModal";
 import type { TerminalOption } from "./AddRouteModal";
@@ -17,6 +17,7 @@ export type RouteItem = {
   via: string;
   via_ids: string[];
   distance_km: number | null;
+  duration_min: number | null;
   fare_etb: number | null;
   fareId: string | null;
 };
@@ -26,9 +27,13 @@ interface Props {
   terminals: TerminalOption[];
 }
 
+const PAGE_SIZES = [10, 25, 50];
+
 export default function RouteListPanel({ routes, terminals }: Props) {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<RouteEditData | null>(null);
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
 
   const filtered = search
     ? routes.filter(
@@ -39,6 +44,15 @@ export default function RouteListPanel({ routes, terminals }: Props) {
       )
     : routes;
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paged = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  function handleSearch(v: string) {
+    setSearch(v);
+    setPage(1);
+  }
+
   function openEdit(r: RouteItem) {
     setEditing({
       id: r.id, name: r.name,
@@ -46,6 +60,7 @@ export default function RouteListPanel({ routes, terminals }: Props) {
       end_terminal_id: r.end_terminal_id,
       via_ids: r.via_ids,
       distance_km: r.distance_km,
+      duration_min: r.duration_min,
       fare_etb: r.fare_etb,
       fareId: r.fareId,
       is_active: r.is_active,
@@ -55,21 +70,40 @@ export default function RouteListPanel({ routes, terminals }: Props) {
   return (
     <>
       <div className="flex flex-col gap-3">
-        {/* Search */}
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search routes…"
-            className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+        {/* Toolbar */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-48">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <input value={search} onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Search routes…"
+              className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+            <span>Rows:</span>
+            {PAGE_SIZES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => { setPageSize(s); setPage(1); }}
+                className={`h-7 w-9 rounded-md border text-xs transition-colors ${
+                  pageSize === s
+                    ? "border-primary bg-primary/10 text-primary font-medium"
+                    : "border-border hover:bg-muted"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* List */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {filtered.map((r, i) => (
+          {paged.map((r, i) => (
             <div
               key={r.id}
               className={`flex items-center gap-4 px-5 py-4 ${
-                i < filtered.length - 1 ? "border-b border-border" : ""
+                i < paged.length - 1 ? "border-b border-border" : ""
               }`}
             >
               {/* Icon */}
@@ -95,9 +129,14 @@ export default function RouteListPanel({ routes, terminals }: Props) {
                   {r.distance_km != null && (
                     <span className="text-xs text-muted-foreground">{r.distance_km} km</span>
                   )}
+                  {r.duration_min != null && (
+                    <span className="text-xs text-muted-foreground">
+                      {r.distance_km != null ? "·" : ""} ~{r.duration_min} min
+                    </span>
+                  )}
                   {r.fare_etb != null && (
                     <span className="text-xs text-primary font-medium">
-                      {r.distance_km != null ? "·" : ""} ETB {r.fare_etb.toFixed(2)}
+                      {(r.distance_km != null || r.duration_min != null) ? "·" : ""} ETB {r.fare_etb.toFixed(2)}
                     </span>
                   )}
                 </div>
@@ -125,12 +164,42 @@ export default function RouteListPanel({ routes, terminals }: Props) {
             </div>
           ))}
 
-          {filtered.length === 0 && (
+          {paged.length === 0 && (
             <div className="px-5 py-10 text-center text-sm text-muted-foreground">
               {search ? "No routes match your search." : "No routes configured yet."}
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="px-2">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {editing && (

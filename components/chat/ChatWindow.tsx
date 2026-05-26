@@ -140,7 +140,7 @@ export default function ChatWindow({ initialMessages, sessionId: initialSessionI
         <div>
           <p className="text-sm font-semibold text-foreground leading-none">TaxiFlow AI</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            <span className="text-emerald-500">●</span> Online · Powered by Gemini
+            <span className="text-emerald-500">●</span> Online · Powered by Groq
           </p>
         </div>
         <button
