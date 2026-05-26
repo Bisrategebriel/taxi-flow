@@ -1,6 +1,7 @@
 // FR-ST-05..17, NFR-SE-05,06
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getDirections } from "@/lib/ors/client";
 import TrackingView from "./_components/TrackingView";
 
 interface PageProps {
@@ -50,6 +51,11 @@ export default async function TrackPage({ params }: PageProps) {
   const end = trip.end as { id: string; name: string; lat: number; lng: number } | null;
   const routeName = (trip.routes as { name: string } | null)?.name ?? "Unknown Route";
 
+  // Fetch ORS polyline for the route
+  const ors = start && end
+    ? await getDirections({ lat: start.lat, lng: start.lng }, { lat: end.lat, lng: end.lng })
+    : null;
+
   return (
     <TrackingView
       tripId={trip.id}
@@ -60,6 +66,7 @@ export default async function TrackPage({ params }: PageProps) {
       startedAt={trip.started_at}
       start={start}
       end={end}
+      polyline={ors?.polyline ?? null}
     />
   );
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, Navigation2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import {
   Card,
   CardHeader,
@@ -60,8 +61,11 @@ export default async function PaymentSuccessPage({
     }
   }
 
+  // Use service client to bypass RLS on trip_locations
+  const serviceSupabase = createServiceClient();
+
   // Fetch GPS locations for actual distance computation
-  const { data: locations } = await supabase
+  const { data: locations } = await serviceSupabase
     .from("trip_locations")
     .select("lat, lng")
     .eq("trip_id", tripId)
@@ -93,14 +97,27 @@ export default async function PaymentSuccessPage({
   const startTerminalId = trip.start_terminal_id;
   const endTerminalId = trip.end_terminal_id;
 
-  const { data: distRow } = !actualDistanceKm && startTerminalId && endTerminalId
-    ? await supabase
+  let distRow: { distance_km: number } | null = null;
+  if (!actualDistanceKm && startTerminalId && endTerminalId) {
+    // Try canonical direction first, then reverse
+    const { data: d1 } = await serviceSupabase
+      .from("distances")
+      .select("distance_km")
+      .eq("from_terminal_id", startTerminalId)
+      .eq("to_terminal_id", endTerminalId)
+      .maybeSingle();
+    if (d1) {
+      distRow = d1;
+    } else {
+      const { data: d2 } = await serviceSupabase
         .from("distances")
         .select("distance_km")
-        .eq("from_terminal_id", startTerminalId)
-        .eq("to_terminal_id", endTerminalId)
-        .single()
-    : { data: null };
+        .eq("from_terminal_id", endTerminalId)
+        .eq("to_terminal_id", startTerminalId)
+        .maybeSingle();
+      distRow = d2 ?? null;
+    }
+  }
 
   // Computed display values
   const total = Number(trip.fare_amount ?? 0);

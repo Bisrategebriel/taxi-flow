@@ -131,10 +131,11 @@ export function useTripTracking(params: TripTrackingParams): TripTrackingResult 
     if (snapshotTimerRef.current) clearInterval(snapshotTimerRef.current);
     if (channelRef.current) supabase.removeChannel(channelRef.current);
 
-    await supabase
-      .from("trips")
-      .update({ status: "completed", ended_at: new Date().toISOString() })
-      .eq("id", tripIdRef.current);
+    await fetch("/api/trip/end", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tripId: tripIdRef.current }),
+    });
 
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* storage blocked */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

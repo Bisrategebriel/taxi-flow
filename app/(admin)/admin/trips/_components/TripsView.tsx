@@ -184,21 +184,24 @@ function StatusSelect({
 
 // ─── main component ──────────────────────────────────────────────────────────
 
+const PAGE_SIZES = [10, 25, 50, 100];
+
 interface Props {
   rows: TripRow[];
   stats: TripStats;
   filters: { status?: string; from?: string; to?: string };
-  pagination: { page: number; totalPages: number; count: number };
+  pagination: { page: number; totalPages: number; count: number; pageSize: number };
 }
 
 export default function TripsView({ rows, stats, filters, pagination }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [localRows, setLocalRows] = useState<TripRow[]>(rows);
   const [selectedTrip, setSelectedTrip] = useState<TripRow | null>(null);
   const [exportPending, startExport] = useTransition();
 
   // Client-side search over the loaded page of rows
-  const filtered = rows.filter((r) => {
+  const filtered = localRows.filter((r) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -216,10 +219,20 @@ export default function TripsView({ rows, stats, filters, pagination }: Props) {
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.from ? { from: filters.from } : {}),
       ...(filters.to ? { to: filters.to } : {}),
+      pageSize: String(pagination.pageSize),
       ...overrides,
     };
     Object.entries(merged).forEach(([k, v]) => v && params.set(k, v));
     router.push(`/admin/trips?${params.toString()}`);
+  }
+
+  function handleCancelled(tripId: string) {
+    setLocalRows((prev) =>
+      prev.map((r) => r.id === tripId ? { ...r, status: "cancelled" } : r)
+    );
+    setSelectedTrip((prev) =>
+      prev?.id === tripId ? { ...prev, status: "cancelled" } : prev
+    );
   }
 
   function handleExport() {
@@ -239,11 +252,12 @@ export default function TripsView({ rows, stats, filters, pagination }: Props) {
     });
   }
 
-  const pageUrl = (p: number) => {
+  const pageUrl = (p: number, ps?: number) => {
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.from) params.set("from", filters.from);
     if (filters.to) params.set("to", filters.to);
+    params.set("pageSize", String(ps ?? pagination.pageSize));
     params.set("page", String(p));
     return `/admin/trips?${params.toString()}`;
   };
@@ -303,6 +317,24 @@ export default function TripsView({ rows, stats, filters, pagination }: Props) {
           <span className="rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground whitespace-nowrap">
             {search ? `${filtered.length} shown` : `${pagination.count} results`}
           </span>
+
+          {/* Rows per page */}
+          <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+            <span>Rows:</span>
+            {PAGE_SIZES.map((s) => (
+              <a
+                key={s}
+                href={pageUrl(1, s)}
+                className={`flex h-7 w-9 items-center justify-center rounded-md border text-xs transition-colors ${
+                  pagination.pageSize === s
+                    ? "border-primary bg-primary/10 text-primary font-medium"
+                    : "border-border hover:bg-muted"
+                }`}
+              >
+                {s}
+              </a>
+            ))}
+          </div>
 
           <button
             type="button"
@@ -531,6 +563,7 @@ export default function TripsView({ rows, stats, filters, pagination }: Props) {
         <TripDetailModal
           trip={selectedTrip}
           onClose={() => setSelectedTrip(null)}
+          onCancelled={handleCancelled}
         />
       )}
     </div>
