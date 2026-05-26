@@ -8,12 +8,12 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 export type AuditLog = {
   id: string;
   actor_id: string | null;
+  actor_name: string | null;
   action: string;
   table_name: string | null;
   record_id: string | null;
   new_data: unknown;
   created_at: string;
-  profiles: { full_name: string | null } | null;
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -154,10 +154,8 @@ export default function AuditLogsView({
                       {new Date(log.created_at).toLocaleString()}
                     </td>
                     <td className="px-4 py-3 text-xs">
-                      {(log.profiles as { full_name: string | null } | null)
-                        ?.full_name ??
-                        log.actor_id?.slice(0, 8) ??
-                        "system"}
+                      {log.actor_name ??
+                        (log.actor_id ? log.actor_id.slice(0, 8) + "…" : "system")}
                     </td>
                     <td className="px-4 py-3">
                       <ActionBadge action={log.action} />

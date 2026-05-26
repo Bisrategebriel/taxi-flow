@@ -208,10 +208,13 @@ export default function AuthSettingsCard({ settings }: { settings: SettingsMap }
           </p>
         )}
         {logoutResult?.success && (
-          <p className="mt-2 text-xs text-green-500">All sessions terminated.</p>
+          <p className="mt-2 text-xs text-green-500">
+            Refresh tokens revoked. Users will be signed out within 1 hour as access
+            tokens expire. For immediate lockdown, use Emergency Stop.
+          </p>
         )}
         {logoutResult?.error && (
-          <p className="mt-2 text-xs text-destructive">{logoutResult.error}</p>
+          <p className="mt-2 text-xs text-orange-400">{logoutResult.error}</p>
         )}
       </div>
     </div>
