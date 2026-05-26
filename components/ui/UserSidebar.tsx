@@ -2,11 +2,25 @@
 // FR-UD-01, FR-UD-02
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isNavActive } from "@/components/ui/nav-items";
+import { signout } from "@/app/auth/signout/actions";
 
-export default function UserSidebar() {
+interface Props {
+  userFullName?: string | null;
+  userEmail?: string | null;
+}
+
+export default function UserSidebar({ userFullName, userEmail }: Props) {
   const pathname = usePathname();
+
+  const initials = (userFullName ?? userEmail ?? "?")
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <nav
@@ -19,6 +33,7 @@ export default function UserSidebar() {
           <span className="text-foreground">Flow</span>
         </Link>
       </div>
+
       <div className="flex flex-col gap-1 p-3 flex-1">
         {NAV_ITEMS.map((item) => {
           const active = isNavActive(pathname, item.href);
@@ -39,6 +54,36 @@ export default function UserSidebar() {
             </Link>
           );
         })}
+      </div>
+
+      {/* User info + sign out */}
+      <div className="border-t border-border p-3">
+        <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 mb-1">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            {userFullName && (
+              <p className="text-sm font-medium text-foreground truncate leading-tight">
+                {userFullName}
+              </p>
+            )}
+            {userEmail && (
+              <p className="text-xs text-muted-foreground truncate leading-tight">
+                {userEmail}
+              </p>
+            )}
+          </div>
+        </div>
+        <form action={signout}>
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <LogOut size={16} strokeWidth={1.75} />
+            Sign Out
+          </button>
+        </form>
       </div>
     </nav>
   );

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { X, Share2, MapPin, Clock } from "lucide-react";
 import { useTripTracking } from "@/hooks/useTripTracking";
+import { tripDisplayId } from "@/lib/utils/trip-id";
 import EndTripModal from "./EndTripModal";
 
 const TripMapInner = dynamic(() => import("./TripMapInner"), {
@@ -58,13 +59,31 @@ function haversineM(
 
 export default function TripInProgress({ start, end, routeId, fareAmount, initialTripId, initialPolyline, initialDurationS }: Props) {
   const router = useRouter();
+
+  // On page refresh the URL may not carry tripId, but localStorage does.
+  // Restore the stored trip so we don't create a duplicate.
+  const resolvedInitialTripId = useMemo(() => {
+    if (initialTripId) return initialTripId;
+    if (typeof window === "undefined") return undefined;
+    try {
+      const raw = localStorage.getItem("taxiflow_active_trip");
+      if (!raw) return undefined;
+      const stored = JSON.parse(raw) as { tripId?: string; fromId?: string; toId?: string };
+      if (stored.tripId && stored.fromId === start?.id && stored.toId === end?.id) {
+        return stored.tripId;
+      }
+    } catch { /* storage blocked */ }
+    return undefined;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const { tripId, position, geoError, isLoading, endTrip, generateShareToken } =
     useTripTracking({
       startTerminalId: start?.id ?? "",
       endTerminalId: end?.id ?? "",
       routeId,
       fareAmount,
-      initialTripId,
+      initialTripId: resolvedInitialTripId,
     });
 
   const [distanceM, setDistanceM] = useState(0);
@@ -133,13 +152,10 @@ export default function TripInProgress({ start, end, routeId, fareAmount, initia
     [distanceM]
   );
 
-  // TFR + 4-digit numeric suffix derived from the UUID's last 4 hex digits
-  const tripShortId = useMemo(() => {
-    if (!tripId) return "TFR——";
-    const hex = tripId.replace(/-/g, "").slice(-4);
-    const num = parseInt(hex, 16) % 10000;
-    return `TFR${num.toString().padStart(4, "0")}`;
-  }, [tripId]);
+  const tripShortId = useMemo(
+    () => (tripId ? tripDisplayId(tripId) : "TF——"),
+    [tripId]
+  );
 
   const arriveAtLabel = useMemo(() => {
     if (!initialDurationS) return null;

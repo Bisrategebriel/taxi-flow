@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { X, User, Clock, MapPin, CreditCard, Navigation, Ban } from "lucide-react";
-import { cancelTrip } from "@/app/(admin)/admin/_actions/trips";
+import { X, User, Clock, MapPin, CreditCard, Navigation, Ban, CheckCircle2 } from "lucide-react";
+import { cancelTrip, endTrip } from "@/app/(admin)/admin/_actions/trips";
 import type { TripRow } from "../page";
 
 function formatTime(iso: string) {
@@ -64,25 +64,42 @@ interface Props {
   trip: TripRow;
   onClose: () => void;
   onCancelled?: (tripId: string) => void;
+  onEnded?: (tripId: string) => void;
 }
 
-export default function TripDetailModal({ trip, onClose, onCancelled }: Props) {
+type ConfirmMode = "cancel" | "end" | null;
+
+export default function TripDetailModal({ trip, onClose, onCancelled, onEnded }: Props) {
   const isCompleted = ["completed", "paid", "payment_pending"].includes(trip.status);
   const [currentStatus, setCurrentStatus] = useState(trip.status);
-  const [cancelError, setCancelError] = useState<string | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [cancelPending, startCancel] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
+  const [actionPending, startAction] = useTransition();
 
   function handleCancelConfirm() {
-    setCancelError(null);
-    startCancel(async () => {
+    setActionError(null);
+    startAction(async () => {
       const res = await cancelTrip(trip.id);
       if (res.error) {
-        setCancelError(res.error);
+        setActionError(res.error);
       } else {
         setCurrentStatus("cancelled");
-        setShowConfirm(false);
+        setConfirmMode(null);
         onCancelled?.(trip.id);
+      }
+    });
+  }
+
+  function handleEndConfirm() {
+    setActionError(null);
+    startAction(async () => {
+      const res = await endTrip(trip.id);
+      if (res.error) {
+        setActionError(res.error);
+      } else {
+        setCurrentStatus("completed");
+        setConfirmMode(null);
+        onEnded?.(trip.id);
       }
     });
   }
@@ -159,33 +176,74 @@ export default function TripDetailModal({ trip, onClose, onCancelled }: Props) {
             <StatusBadge status={currentStatus} />
           </div>
 
-          {/* Cancel trip — only for active trips */}
-          {currentStatus === "active" && !showConfirm && (
-            <button
-              type="button"
-              onClick={() => setShowConfirm(true)}
-              className="flex w-full items-center justify-center gap-2 h-10 rounded-xl border border-red-500/40 text-red-500 bg-red-500/5 hover:bg-red-500/10 text-sm font-medium transition-colors"
-            >
-              <Ban size={15} />
-              Cancel Trip
-            </button>
+          {/* Action buttons — only for active trips */}
+          {currentStatus === "active" && !confirmMode && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmMode("end")}
+                className="flex flex-1 items-center justify-center gap-2 h-10 rounded-xl border border-green-500/40 text-green-500 bg-green-500/5 hover:bg-green-500/10 text-sm font-medium transition-colors"
+              >
+                <CheckCircle2 size={15} />
+                End Trip
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmMode("cancel")}
+                className="flex flex-1 items-center justify-center gap-2 h-10 rounded-xl border border-red-500/40 text-red-500 bg-red-500/5 hover:bg-red-500/10 text-sm font-medium transition-colors"
+              >
+                <Ban size={15} />
+                Cancel Trip
+              </button>
+            </div>
           )}
 
-          {/* Confirmation panel */}
-          {showConfirm && currentStatus === "active" && (
+          {/* End trip confirmation */}
+          {confirmMode === "end" && currentStatus === "active" && (
+            <div className="rounded-xl border border-green-500/30 bg-green-500/5 px-4 py-4 space-y-3">
+              <p className="text-sm font-medium text-green-500">End this trip?</p>
+              <p className="text-xs text-muted-foreground">
+                The trip will be marked as completed and the passenger can proceed to payment.
+              </p>
+              {actionError && (
+                <p className="text-xs text-destructive">{actionError}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setConfirmMode(null); setActionError(null); }}
+                  disabled={actionPending}
+                  className="flex-1 h-9 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  Keep Active
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEndConfirm}
+                  disabled={actionPending}
+                  className="flex-1 h-9 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-500 disabled:opacity-50 transition-colors"
+                >
+                  {actionPending ? "Ending…" : "Yes, End Trip"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Cancel trip confirmation */}
+          {confirmMode === "cancel" && currentStatus === "active" && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-4 space-y-3">
               <p className="text-sm font-medium text-red-500">Cancel this trip?</p>
               <p className="text-xs text-muted-foreground">
                 The trip will be marked as cancelled and the passenger will be notified.
               </p>
-              {cancelError && (
-                <p className="text-xs text-destructive">{cancelError}</p>
+              {actionError && (
+                <p className="text-xs text-destructive">{actionError}</p>
               )}
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => { setShowConfirm(false); setCancelError(null); }}
-                  disabled={cancelPending}
+                  onClick={() => { setConfirmMode(null); setActionError(null); }}
+                  disabled={actionPending}
                   className="flex-1 h-9 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors"
                 >
                   Keep Trip
@@ -193,10 +251,10 @@ export default function TripDetailModal({ trip, onClose, onCancelled }: Props) {
                 <button
                   type="button"
                   onClick={handleCancelConfirm}
-                  disabled={cancelPending}
+                  disabled={actionPending}
                   className="flex-1 h-9 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-500 disabled:opacity-50 transition-colors"
                 >
-                  {cancelPending ? "Cancelling…" : "Yes, Cancel"}
+                  {actionPending ? "Cancelling…" : "Yes, Cancel"}
                 </button>
               </div>
             </div>

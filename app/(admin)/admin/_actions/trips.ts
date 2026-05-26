@@ -52,6 +52,29 @@ export async function cancelTrip(tripId: string): Promise<{ error?: string }> {
   return {};
 }
 
+export async function endTrip(tripId: string): Promise<{ error?: string }> {
+  await assertAdmin();
+  const service = createServiceClient();
+
+  const { data: trip } = await service
+    .from("trips")
+    .select("id, status")
+    .eq("id", tripId)
+    .single();
+
+  if (!trip) return { error: "Trip not found." };
+  if (trip.status !== "active") return { error: "Only active trips can be ended." };
+
+  const { error } = await service
+    .from("trips")
+    .update({ status: "completed", ended_at: new Date().toISOString() })
+    .eq("id", tripId);
+
+  if (error) return { error: error.message };
+
+  return {};
+}
+
 export async function exportTrips(filters: {
   status?: string;
   from?: string;

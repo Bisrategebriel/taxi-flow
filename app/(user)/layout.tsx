@@ -27,11 +27,10 @@ export default async function UserLayout({
 
   // Fetch active broadcast announcement (service client bypasses RLS)
   const service = createServiceClient();
-  const { data: announcementRow } = await service
-    .from("system_settings")
-    .select("value")
-    .eq("key", "announcement")
-    .single();
+  const [{ data: announcementRow }, { data: profile }] = await Promise.all([
+    service.from("system_settings").select("value").eq("key", "announcement").single(),
+    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+  ]);
 
   const announcement =
     announcementRow?.value &&
@@ -45,7 +44,10 @@ export default async function UserLayout({
       {announcement && <AnnouncementBanner text={announcement} />}
       <div className="flex flex-1 min-h-0">
         <ActiveTripBanner />
-        <UserSidebar />
+        <UserSidebar
+          userFullName={profile?.full_name ?? null}
+          userEmail={user.email ?? null}
+        />
         <main className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
           <ActiveTripSpacer />
           {children}

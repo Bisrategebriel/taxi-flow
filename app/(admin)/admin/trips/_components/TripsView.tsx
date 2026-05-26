@@ -235,6 +235,16 @@ export default function TripsView({ rows, stats, filters, pagination }: Props) {
     );
   }
 
+  function handleEnded(tripId: string) {
+    const now = new Date().toISOString();
+    setLocalRows((prev) =>
+      prev.map((r) => r.id === tripId ? { ...r, status: "completed", endedAt: now } : r)
+    );
+    setSelectedTrip((prev) =>
+      prev?.id === tripId ? { ...prev, status: "completed", endedAt: now } : prev
+    );
+  }
+
   function handleExport() {
     startExport(async () => {
       const { csv } = await exportTrips({
@@ -564,6 +574,7 @@ export default function TripsView({ rows, stats, filters, pagination }: Props) {
           trip={selectedTrip}
           onClose={() => setSelectedTrip(null)}
           onCancelled={handleCancelled}
+          onEnded={handleEnded}
         />
       )}
     </div>
