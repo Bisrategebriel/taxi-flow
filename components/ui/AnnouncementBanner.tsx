@@ -10,6 +10,7 @@ export default function AnnouncementBanner({ text }: { text: string }) {
   const storageKey = `ann_dismissed_${text.slice(0, 60)}`;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisible(localStorage.getItem(storageKey) !== "1");
   }, [storageKey]);
 
