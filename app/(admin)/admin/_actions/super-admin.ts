@@ -41,7 +41,7 @@ async function writeAuditLog(
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export type SuperAdminState = { error?: string; success?: boolean };
+export type SuperAdminState = { error?: string; success?: boolean; warning?: string };
 
 // ── Auth Settings ─────────────────────────────────────────────────────────────
 
@@ -77,7 +77,10 @@ export async function toggleRegistrationEnabled(enabled: boolean): Promise<void>
   revalidatePath("/admin/settings");
 }
 
-/** FR-AS-03 — Force logout all non-super-admin users */
+/** FR-AS-03 — Revoke all refresh tokens for non-super-admin users.
+ *  Note: Supabase access tokens are JWTs valid for ~1 hour. This call revokes
+ *  refresh tokens so re-auth fails; existing access tokens expire naturally.
+ *  For immediate platform lockdown, use Emergency Stop (maintenance mode). */
 export async function forceLogoutAll(): Promise<SuperAdminState> {
   const user = await assertSuperAdmin();
   const service = createServiceClient();
@@ -86,12 +89,27 @@ export async function forceLogoutAll(): Promise<SuperAdminState> {
   if (error) return { error: "Failed to list users: " + error.message };
 
   const others = (data?.users ?? []).filter((u) => u.id !== user.id);
-  await Promise.allSettled(others.map((u) => service.auth.admin.signOut(u.id)));
+
+  // 'global' scope revokes all sessions for each user across all devices.
+  const results = await Promise.allSettled(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    others.map((u) => (service.auth.admin as any).signOut(u.id, "global"))
+  );
+
+  const failed = results.filter((r) => r.status === "rejected").length;
 
   await writeAuditLog(user.id, "FORCE_LOGOUT_ALL", {
     affected_count: others.length,
+    failed,
   });
   revalidatePath("/admin/super-admin");
+
+  if (failed > 0) {
+    return {
+      success: true,
+      error: `${failed}/${others.length} signout calls failed — tokens will expire naturally within 1 hour.`,
+    };
+  }
   return { success: true };
 }
 
@@ -209,6 +227,41 @@ export async function emergencyStop(): Promise<SuperAdminState> {
 
   await writeAuditLog(user.id, "EMERGENCY_STOP", {
     keys_locked: lockKeys.map((k) => k.key),
+  });
+
+  revalidatePath("/admin/super-admin");
+  revalidatePath("/admin/settings");
+  revalidatePath("/");
+  return { success: true };
+}
+
+/** Reverse of emergencyStop — restore normal platform operation */
+export async function restorePlatform(): Promise<SuperAdminState> {
+  const user = await assertSuperAdmin();
+  const service = createServiceClient();
+  const cookieStore = await cookies();
+
+  const restoreKeys: Array<{ key: string; value: Json }> = [
+    { key: "maintenance_mode", value: false },
+    { key: "login_enabled", value: true },
+    { key: "registration_enabled", value: true },
+    { key: "share_tracking_enabled", value: true },
+    { key: "ai_chat_enabled", value: true },
+  ];
+
+  await Promise.all(
+    restoreKeys.map((entry) =>
+      service
+        .from("system_settings")
+        .upsert({ ...entry, updated_by: user.id }, { onConflict: "key" })
+    )
+  );
+
+  // Clear the maintenance cookie so proxy.ts allows normal access immediately.
+  cookieStore.delete("tf_maintenance");
+
+  await writeAuditLog(user.id, "PLATFORM_RESTORED", {
+    keys_restored: restoreKeys.map((k) => k.key),
   });
 
   revalidatePath("/admin/super-admin");

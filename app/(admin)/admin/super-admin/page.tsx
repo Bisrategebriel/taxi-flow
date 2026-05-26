@@ -35,7 +35,7 @@ export default async function SuperAdminPage() {
       <div className="w-3/4 space-y-5">
         <AuthSettingsCard settings={settings} />
         <SystemSettingsCard settings={settings} />
-        <EmergencyControlsCard />
+        <EmergencyControlsCard settings={settings} />
       </div>
     </div>
   );
