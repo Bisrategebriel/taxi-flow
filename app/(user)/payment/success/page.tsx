@@ -44,20 +44,29 @@ export default async function PaymentSuccessPage({
   let cardBrand: string | null = null;
 
   if (paymentIntentId) {
+    let piStatus: string | null = null;
+    let piPaymentMethod: unknown = null;
     try {
       const { stripe } = await import("@/lib/stripe");
       const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
         expand: ["payment_method"],
       });
-      if (pi.status !== "succeeded") redirect("/dashboard");
-
-      const pm = pi.payment_method;
-      if (pm && typeof pm === "object" && "card" in pm && pm.card) {
-        cardLast4 = pm.card.last4 ?? null;
-        cardBrand = pm.card.brand ?? null;
-      }
+      piStatus = pi.status;
+      piPaymentMethod = pi.payment_method;
     } catch {
       redirect("/dashboard");
+    }
+
+    // Redirect is called outside the try-catch so Next.js can handle it correctly
+    if (piStatus !== "succeeded") redirect("/dashboard");
+
+    const pm = piPaymentMethod;
+    if (pm && typeof pm === "object" && "card" in pm) {
+      const card = (pm as { card?: { last4?: string; brand?: string } }).card;
+      if (card) {
+        cardLast4 = card.last4 ?? null;
+        cardBrand = card.brand ?? null;
+      }
     }
   }
 
@@ -130,11 +139,11 @@ export default async function PaymentSuccessPage({
     : (trip.end as { name: string } | null);
   const routeLabel = start && end ? `${start.name} → ${end.name}` : "Your trip";
 
-  // Trip ID: same format as TripInProgress — TFR + 4-digit number from last 4 hex chars
   const startedAt = trip.started_at ? new Date(trip.started_at) : new Date();
-  const hex = trip.id.replace(/-/g, "").slice(-4);
-  const num = parseInt(hex, 16) % 10000;
-  const tripRef = `TFR${num.toString().padStart(4, "0")}`;
+  const tripRef = (() => {
+    const hex = trip.id.replace(/-/g, "").slice(-6);
+    return `TF-${(parseInt(hex, 16) % 100000).toString().padStart(5, "0")}`;
+  })();
 
   const dateLabel = startedAt.toLocaleDateString([], {
     month: "short",

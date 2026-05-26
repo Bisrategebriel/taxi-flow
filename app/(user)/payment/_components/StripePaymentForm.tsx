@@ -1,6 +1,7 @@
 // FR-PA-03..05, NFR-SE-07
 "use client";
 import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +14,7 @@ interface Props {
 export default function StripePaymentForm({ tripId, total }: Props) {
   const stripe = useStripe();
   const elements = useElements();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -23,16 +25,27 @@ export default function StripePaymentForm({ tripId, total }: Props) {
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const { error } = await stripe.confirmPayment({
+    // redirect: "if_required" lets us handle navigation via Next.js router,
+    // avoiding the "Failed to redirect" error caused by Stripe's window.location.assign
+    // conflicting with the App Router. Stripe still handles 3DS redirects when required.
+    const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/payment/success?tripId=${tripId}`,
       },
+      redirect: "if_required",
     });
 
-    // Only reached on error — success triggers a page redirect
     if (error) {
       setErrorMessage(error.message ?? "Payment failed. Please try again.");
+      setIsSubmitting(false);
+    } else if (paymentIntent?.status === "succeeded") {
+      router.push(
+        `/payment/success?tripId=${tripId}&payment_intent=${paymentIntent.id}`
+      );
+    } else {
+      // Unexpected state — let Stripe's redirect handle it
+      setErrorMessage("An unexpected error occurred. Please try again.");
       setIsSubmitting(false);
     }
   }
