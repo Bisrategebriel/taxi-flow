@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, Search, Pencil, Route } from "lucide-react";
+import { MapPin, Search, Pencil, Route, ChevronLeft, ChevronRight } from "lucide-react";
 import ToggleActiveButton from "./ToggleActiveButton";
 import EditTerminalModal, { type TerminalEditData } from "./EditTerminalModal";
+
+const PAGE_SIZE = 10;
 
 export type TerminalItem = {
   id: string;
@@ -17,6 +19,7 @@ export type TerminalItem = {
 
 export default function TerminalListPanel({ terminals }: { terminals: TerminalItem[] }) {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<TerminalEditData | null>(null);
 
   const filtered = search
@@ -26,6 +29,10 @@ export default function TerminalListPanel({ terminals }: { terminals: TerminalIt
           t.city.toLowerCase().includes(search.toLowerCase())
       )
     : terminals;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <>
@@ -38,7 +45,7 @@ export default function TerminalListPanel({ terminals }: { terminals: TerminalIt
           />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search terminals…"
             className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
@@ -46,11 +53,11 @@ export default function TerminalListPanel({ terminals }: { terminals: TerminalIt
 
         {/* List */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {filtered.map((t, i) => (
+          {visible.map((t, i) => (
             <div
               key={t.id}
               className={`flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors ${
-                i < filtered.length - 1 ? "border-b border-border" : ""
+                i < visible.length - 1 ? "border-b border-border" : ""
               }`}
             >
               {/* Icon */}
@@ -96,12 +103,40 @@ export default function TerminalListPanel({ terminals }: { terminals: TerminalIt
             </div>
           ))}
 
-          {filtered.length === 0 && (
+          {visible.length === 0 && (
             <div className="px-5 py-10 text-center text-sm text-muted-foreground">
               {search ? "No terminals match your search." : "No terminals added yet."}
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-1 text-sm">
+            <span className="text-xs text-muted-foreground">
+              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="px-2 text-xs tabular-nums">{currentPage} / {totalPages}</span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {editing && (

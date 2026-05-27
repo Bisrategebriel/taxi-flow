@@ -33,14 +33,18 @@ export function useTripTracking(params: TripTrackingParams): TripTrackingResult 
   const snapshotTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const positionRef = useRef<GeolocationCoordinates | null>(null);
   const tripIdRef = useRef<string | null>(params.initialTripId ?? null);
+  const hasCreatedRef = useRef(false);
 
   // Keep refs current
   useEffect(() => { positionRef.current = position; }, [position]);
   useEffect(() => { tripIdRef.current = tripId; }, [tripId]);
 
   // Create trip in DB on mount (skip if resuming)
+  // hasCreatedRef prevents React StrictMode double-invocation from creating 2 trips
   useEffect(() => {
     if (params.initialTripId) return;
+    if (hasCreatedRef.current) return;
+    hasCreatedRef.current = true;
 
     let mounted = true;
     async function startTrip() {

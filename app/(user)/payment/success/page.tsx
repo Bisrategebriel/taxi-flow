@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CheckCircle2, Navigation2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { insertUserNotification } from "@/lib/notifications";
 import {
   Card,
   CardHeader,
@@ -27,10 +28,12 @@ export default async function PaymentSuccessPage({
 
   const supabase = await createClient();
 
+  const { data: { user } } = await supabase.auth.getUser();
+
   const { data: trip } = await supabase
     .from("trips")
     .select(
-      `id, fare_amount, started_at, ended_at, start_terminal_id, end_terminal_id,
+      `id, user_id, fare_amount, started_at, ended_at, status, start_terminal_id, end_terminal_id,
        start:terminals!trips_start_terminal_id_fkey(name),
        end:terminals!trips_end_terminal_id_fkey(name)`
     )
@@ -38,6 +41,9 @@ export default async function PaymentSuccessPage({
     .single();
 
   if (!trip) redirect("/dashboard");
+
+  // Service client bypasses RLS (used for trip_locations, distances, payments)
+  const serviceSupabase = createServiceClient();
 
   // Verify card payment via Stripe server-side
   let cardLast4: string | null = null;
@@ -60,6 +66,40 @@ export default async function PaymentSuccessPage({
     // Redirect is called outside the try-catch so Next.js can handle it correctly
     if (piStatus !== "succeeded") redirect("/dashboard");
 
+    // Idempotent: only upsert payment + mark paid if not already done
+    if (user && trip && trip.status !== "paid") {
+      const { data: existingPayment } = await serviceSupabase
+        .from("payments")
+        .select("id")
+        .eq("trip_id", tripId)
+        .maybeSingle();
+
+      if (!existingPayment) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (serviceSupabase.from("payments") as any).insert({
+          trip_id: tripId,
+          user_id: user.id,
+          amount: Number(trip.fare_amount ?? 0),
+          currency: "ETB",
+          status: "succeeded",
+          payment_method: "card",
+          paid_at: new Date().toISOString(),
+        });
+
+        await serviceSupabase
+          .from("trips")
+          .update({ status: "paid" })
+          .eq("id", tripId);
+
+        await insertUserNotification(
+          user.id,
+          "Payment confirmed",
+          `Your card payment of ETB ${Number(trip.fare_amount ?? 0).toFixed(2)} has been received. Thank you for travelling with TaxiFlow.`,
+          "success"
+        );
+      }
+    }
+
     const pm = piPaymentMethod;
     if (pm && typeof pm === "object" && "card" in pm) {
       const card = (pm as { card?: { last4?: string; brand?: string } }).card;
@@ -69,9 +109,6 @@ export default async function PaymentSuccessPage({
       }
     }
   }
-
-  // Use service client to bypass RLS on trip_locations
-  const serviceSupabase = createServiceClient();
 
   // Fetch GPS locations for actual distance computation
   const { data: locations } = await serviceSupabase
