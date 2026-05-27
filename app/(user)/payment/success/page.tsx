@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, Navigation2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import {
   Card,
   CardHeader,
@@ -29,7 +30,7 @@ export default async function PaymentSuccessPage({
   const { data: trip } = await supabase
     .from("trips")
     .select(
-      `id, fare_amount, started_at, start_terminal_id, end_terminal_id,
+      `id, fare_amount, started_at, ended_at, start_terminal_id, end_terminal_id,
        start:terminals!trips_start_terminal_id_fkey(name),
        end:terminals!trips_end_terminal_id_fkey(name)`
     )
@@ -43,35 +44,89 @@ export default async function PaymentSuccessPage({
   let cardBrand: string | null = null;
 
   if (paymentIntentId) {
+    let piStatus: string | null = null;
+    let piPaymentMethod: unknown = null;
     try {
       const { stripe } = await import("@/lib/stripe");
       const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
         expand: ["payment_method"],
       });
-      if (pi.status !== "succeeded") redirect("/dashboard");
-
-      const pm = pi.payment_method;
-      if (pm && typeof pm === "object" && "card" in pm && pm.card) {
-        cardLast4 = pm.card.last4 ?? null;
-        cardBrand = pm.card.brand ?? null;
-      }
+      piStatus = pi.status;
+      piPaymentMethod = pi.payment_method;
     } catch {
       redirect("/dashboard");
     }
+
+    // Redirect is called outside the try-catch so Next.js can handle it correctly
+    if (piStatus !== "succeeded") redirect("/dashboard");
+
+    const pm = piPaymentMethod;
+    if (pm && typeof pm === "object" && "card" in pm) {
+      const card = (pm as { card?: { last4?: string; brand?: string } }).card;
+      if (card) {
+        cardLast4 = card.last4 ?? null;
+        cardBrand = card.brand ?? null;
+      }
+    }
   }
 
-  // Fetch distance/duration for this terminal pair
+  // Use service client to bypass RLS on trip_locations
+  const serviceSupabase = createServiceClient();
+
+  // Fetch GPS locations for actual distance computation
+  const { data: locations } = await serviceSupabase
+    .from("trip_locations")
+    .select("lat, lng")
+    .eq("trip_id", tripId)
+    .order("recorded_at", { ascending: true });
+
+  // Haversine distance between two GPS points (km)
+  function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  let actualDistanceKm: number | null = null;
+  if (locations && locations.length >= 2) {
+    actualDistanceKm = locations.reduce((sum, pt, i) => {
+      if (i === 0) return sum;
+      const prev = locations[i - 1];
+      return sum + haversine(prev.lat, prev.lng, pt.lat, pt.lng);
+    }, 0);
+  }
+
+  // Fallback: distance from distances table if GPS data insufficient
   const startTerminalId = trip.start_terminal_id;
   const endTerminalId = trip.end_terminal_id;
 
-  const { data: distRow } = startTerminalId && endTerminalId
-    ? await supabase
+  let distRow: { distance_km: number } | null = null;
+  if (!actualDistanceKm && startTerminalId && endTerminalId) {
+    // Try canonical direction first, then reverse
+    const { data: d1 } = await serviceSupabase
+      .from("distances")
+      .select("distance_km")
+      .eq("from_terminal_id", startTerminalId)
+      .eq("to_terminal_id", endTerminalId)
+      .maybeSingle();
+    if (d1) {
+      distRow = d1;
+    } else {
+      const { data: d2 } = await serviceSupabase
         .from("distances")
-        .select("distance_km, duration_minutes")
-        .eq("from_terminal_id", startTerminalId)
-        .eq("to_terminal_id", endTerminalId)
-        .single()
-    : { data: null };
+        .select("distance_km")
+        .eq("from_terminal_id", endTerminalId)
+        .eq("to_terminal_id", startTerminalId)
+        .maybeSingle();
+      distRow = d2 ?? null;
+    }
+  }
 
   // Computed display values
   const total = Number(trip.fare_amount ?? 0);
@@ -84,11 +139,11 @@ export default async function PaymentSuccessPage({
     : (trip.end as { name: string } | null);
   const routeLabel = start && end ? `${start.name} → ${end.name}` : "Your trip";
 
-  // Trip ID: same format as TripInProgress — TFR + 4-digit number from last 4 hex chars
   const startedAt = trip.started_at ? new Date(trip.started_at) : new Date();
-  const hex = trip.id.replace(/-/g, "").slice(-4);
-  const num = parseInt(hex, 16) % 10000;
-  const tripRef = `TFR${num.toString().padStart(4, "0")}`;
+  const tripRef = (() => {
+    const hex = trip.id.replace(/-/g, "").slice(-6);
+    return `TF-${(parseInt(hex, 16) % 100000).toString().padStart(5, "0")}`;
+  })();
 
   const dateLabel = startedAt.toLocaleDateString([], {
     month: "short",
@@ -96,15 +151,22 @@ export default async function PaymentSuccessPage({
     year: "numeric",
   });
 
-  const durationLabel = distRow?.duration_minutes
-    ? distRow.duration_minutes >= 60
-      ? `${Math.floor(distRow.duration_minutes / 60)}h ${distRow.duration_minutes % 60}m`
-      : `${distRow.duration_minutes} min`
-    : "—";
+  // Actual duration from trip timestamps
+  let durationLabel = "—";
+  if (trip.started_at && trip.ended_at) {
+    const mins = Math.round(
+      (new Date(trip.ended_at).getTime() - new Date(trip.started_at).getTime()) / 60000
+    );
+    durationLabel = mins >= 60
+      ? `${Math.floor(mins / 60)}h ${mins % 60}m`
+      : `${mins} min`;
+  }
 
-  const distanceLabel = distRow?.distance_km
-    ? `${Number(distRow.distance_km).toFixed(1)} km`
-    : "—";
+  const distanceLabel = actualDistanceKm != null
+    ? `${actualDistanceKm.toFixed(1)} km`
+    : distRow?.distance_km
+      ? `${Number(distRow.distance_km).toFixed(1)} km`
+      : "—";
 
   const brandLabel = cardBrand
     ? cardBrand.charAt(0).toUpperCase() + cardBrand.slice(1)

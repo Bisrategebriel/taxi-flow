@@ -204,8 +204,11 @@ export default function UserDashboardPage() {
         spent: totalSpent,
       });
 
-      // Recent 7 trips
-      const recent: RecentTrip[] = tripsData.slice(0, 7).map((t) => ({
+      // Recent 7 trips — completed/paid only (active trips are shown in ActiveTripBanner)
+      const recent: RecentTrip[] = tripsData
+        .filter((t) => t.status === "completed" || t.status === "paid")
+        .slice(0, 7)
+        .map((t) => ({
         id: t.id,
         displayId: tripDisplayId(t.id),
         fromName: t.start_terminal_id ? (termMap.get(t.start_terminal_id) ?? null) : null,

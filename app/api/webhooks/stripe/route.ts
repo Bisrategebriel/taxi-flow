@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
+import { insertUserNotification } from "@/lib/notifications";
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
@@ -44,6 +45,15 @@ export async function POST(request: NextRequest) {
     });
 
     await supabase.from("trips").update({ status: "paid" }).eq("id", tripId);
+
+    if (userId) {
+      await insertUserNotification(
+        userId,
+        "Payment confirmed",
+        `Your card payment of ${(pi.amount / 100).toFixed(2)} ${pi.currency.toUpperCase()} has been received. Thank you for travelling with TaxiFlow.`,
+        "success"
+      );
+    }
   }
 
   return NextResponse.json({ received: true });

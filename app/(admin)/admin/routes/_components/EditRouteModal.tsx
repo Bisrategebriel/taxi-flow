@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, X, MapPin } from "lucide-react";
+import { Plus, X, MapPin, ChevronUp, ChevronDown } from "lucide-react";
 import { editRoute } from "@/app/(admin)/admin/_actions/routes";
 import type { TerminalOption } from "./AddRouteModal";
 
@@ -12,6 +12,7 @@ export type RouteEditData = {
   end_terminal_id: string;
   via_ids: string[];
   distance_km: number | null;
+  duration_min: number | null;
   fare_etb: number | null;
   fareId: string | null;
   is_active: boolean;
@@ -29,6 +30,7 @@ export default function EditRouteModal({ route, terminals, onClose }: Props) {
   const [toId, setToId] = useState(route.end_terminal_id);
   const [viaIds, setViaIds] = useState<string[]>(route.via_ids);
   const [distKm, setDistKm] = useState(route.distance_km?.toString() ?? "");
+  const [durationMin, setDurationMin] = useState(route.duration_min?.toString() ?? "");
   const [fareEtb, setFareEtb] = useState(route.fare_etb?.toString() ?? "");
   const [isActive, setIsActive] = useState(route.is_active);
   const [pending, startTransition] = useTransition();
@@ -52,6 +54,16 @@ export default function EditRouteModal({ route, terminals, onClose }: Props) {
     setViaIds((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function moveViaStop(index: number, dir: -1 | 1) {
+    setViaIds((prev) => {
+      const next = [...prev];
+      const swapIdx = index + dir;
+      if (swapIdx < 0 || swapIdx >= next.length) return prev;
+      [next[index], next[swapIdx]] = [next[swapIdx], next[index]];
+      return next;
+    });
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -63,6 +75,7 @@ export default function EditRouteModal({ route, terminals, onClose }: Props) {
         end_terminal_id: toId,
         via_ids: viaIds.filter(Boolean),
         distance_km: distKm,
+        duration_min: durationMin,
         fare_etb: fareEtb,
         is_active: isActive,
         fareId: route.fareId,
@@ -136,6 +149,24 @@ export default function EditRouteModal({ route, terminals, onClose }: Props) {
                         <option key={t.id} value={t.id}>{t.name} ({t.city})</option>
                       ))}
                     </select>
+                    <div className="flex flex-col gap-0.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => moveViaStop(i, -1)}
+                        disabled={i === 0}
+                        className="flex h-4 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 transition-colors"
+                      >
+                        <ChevronUp size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveViaStop(i, 1)}
+                        disabled={i === viaIds.length - 1}
+                        className="flex h-4 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 transition-colors"
+                      >
+                        <ChevronDown size={12} />
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeViaStop(i)}
@@ -159,11 +190,18 @@ export default function EditRouteModal({ route, terminals, onClose }: Props) {
             </select>
           </div>
 
-          {/* Distance */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium">Distance (km)</label>
-            <input value={distKm} onChange={(e) => setDistKm(e.target.value)} name="distance_km" type="number" step="any" min="0" placeholder="e.g. 24"
-              className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          {/* Distance + Duration side by side */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Distance (km)</label>
+              <input value={distKm} onChange={(e) => setDistKm(e.target.value)} name="distance_km" type="number" step="any" min="0" placeholder="e.g. 24"
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Est. Duration (min)</label>
+              <input value={durationMin} onChange={(e) => setDurationMin(e.target.value)} name="duration_min" type="number" step="1" min="0" placeholder="e.g. 45"
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            </div>
           </div>
 
           {/* Fare ETB */}

@@ -49,11 +49,13 @@ export default async function AdminNotificationsPage() {
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const sentRows: SentRow[] = notifError ? [] : (notifRows ?? []);
-  const totalNotifications = sentRows.length;
-  const totalSent = sentRows.reduce(
+  // Total deliveries = sum of sent_count across all records
+  const totalNotifications = sentRows.reduce(
     (s: number, n: SentRow) => s + (n.sent_count ?? 0),
     0
   );
+  // Number of distinct send operations
+  const totalSent = sentRows.length;
   const totalRead = sentRows.reduce(
     (s: number, n: SentRow) => s + (n.read_count ?? 0),
     0
@@ -110,7 +112,7 @@ export default async function AdminNotificationsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Notifications</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {totalNotifications} notification{totalNotifications !== 1 ? "s" : ""} sent
+            {totalNotifications} total deliveries · {totalSent} send operation{totalSent !== 1 ? "s" : ""}
           </p>
         </div>
         {/* Push settings toggle */}
@@ -129,7 +131,7 @@ export default async function AdminNotificationsPage() {
           </div>
           <div>
             <p className="text-2xl font-bold leading-none">{totalNotifications}</p>
-            <p className="text-xs text-muted-foreground mt-1.5">Total Notifications</p>
+            <p className="text-xs text-muted-foreground mt-1.5">Total Deliveries</p>
           </div>
         </div>
 
@@ -139,7 +141,7 @@ export default async function AdminNotificationsPage() {
           </div>
           <div>
             <p className="text-2xl font-bold leading-none text-blue-400">{totalSent}</p>
-            <p className="text-xs text-muted-foreground mt-1.5">Sent Notifications</p>
+            <p className="text-xs text-muted-foreground mt-1.5">Broadcasts Sent</p>
           </div>
         </div>
 

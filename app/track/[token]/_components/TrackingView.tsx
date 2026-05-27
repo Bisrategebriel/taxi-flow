@@ -25,6 +25,7 @@ interface Props {
   startedAt: string;
   start: Terminal | null;
   end: Terminal | null;
+  polyline: [number, number][] | null;
 }
 
 function formatTime(iso: string): string {
@@ -40,6 +41,7 @@ export default function TrackingView({
   startedAt,
   start,
   end,
+  polyline,
 }: Props) {
   const liveLocation = useRealtimeLocation(tripId);
 
@@ -72,6 +74,7 @@ export default function TrackingView({
           start={start}
           end={end}
           userPos={userPos}
+          polyline={polyline}
           className="h-full w-full"
         />
 

@@ -32,9 +32,8 @@ export default async function PaymentPage({
   if (trip.status === "paid") redirect("/payment/success?tripId=" + tripId);
 
   const total = Number(trip.fare_amount ?? 0);
-  const serviceFee = 2.0;
-  const distSurcharge = Math.round(Math.max(0, total * 0.04) * 100) / 100;
-  const baseFare = Math.round((total - serviceFee - distSurcharge) * 100) / 100;
+  const baseFare = Math.round((total / 1.15) * 100) / 100;
+  const vat = Math.round((total - baseFare) * 100) / 100;
 
   return (
     <PaymentScreen
@@ -45,7 +44,7 @@ export default async function PaymentPage({
         start: Array.isArray(trip.start) ? trip.start[0] ?? null : (trip.start as { name: string } | null),
         end: Array.isArray(trip.end) ? trip.end[0] ?? null : (trip.end as { name: string } | null),
       }}
-      breakdown={{ baseFare, serviceFee, distSurcharge, total }}
+      breakdown={{ baseFare, vat, total }}
       cancelled={cancelled === "true"}
     />
   );

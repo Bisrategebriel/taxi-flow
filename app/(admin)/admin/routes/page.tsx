@@ -23,7 +23,7 @@ export default async function AdminRoutesPage() {
         .from("fares")
         .select("id, route_id, amount")
         .order("effective_from", { ascending: false }),
-      service.from("distances").select("from_terminal_id, to_terminal_id, distance_km"),
+      service.from("distances").select("from_terminal_id, to_terminal_id, distance_km, duration_minutes"),
       service.from("terminals").select("id, name, city").order("name"),
     ]);
 
@@ -34,8 +34,10 @@ export default async function AdminRoutesPage() {
   }
 
   const distMap = new Map<string, number>();
+  const durationMap = new Map<string, number>();
   for (const d of distances ?? []) {
     distMap.set(`${d.from_terminal_id}-${d.to_terminal_id}`, d.distance_km);
+    if (d.duration_minutes) durationMap.set(`${d.from_terminal_id}-${d.to_terminal_id}`, d.duration_minutes);
   }
 
   const terminalNameMap = new Map((terminals ?? []).map((t) => [t.id, t.name]));
@@ -46,6 +48,7 @@ export default async function AdminRoutesPage() {
     const end = r.end as { id: string; name: string } | null;
     const fare = fareMap.get(r.id);
     const dist = distMap.get(`${r.start_terminal_id}-${r.end_terminal_id}`) ?? null;
+    const dur = durationMap.get(`${r.start_terminal_id}-${r.end_terminal_id}`) ?? null;
     const viaIds: string[] = r.intermediate_stops ?? [];
     const viaDisplay = viaIds.map((id) => terminalNameMap.get(id) ?? id).join(", ");
 
@@ -60,6 +63,7 @@ export default async function AdminRoutesPage() {
       via: viaDisplay,
       via_ids: viaIds,
       distance_km: dist,
+      duration_min: dur,
       fare_etb: fare?.amount ?? null,
       fareId: fare?.id ?? null,
     };

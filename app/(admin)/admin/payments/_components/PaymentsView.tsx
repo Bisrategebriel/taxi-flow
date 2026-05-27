@@ -184,14 +184,17 @@ const STATUS_OPTIONS = [
 
 // ─── main component ───────────────────────────────────────────────────────────
 
+const PAGE_SIZES = [10, 25, 50, 100];
+
 interface Props {
   rows: PaymentRow[];
   stats: PaymentStats;
   chartData: MonthlyDataPoint[];
   filters: { method?: string; status?: string; from?: string; to?: string };
+  pagination: { page: number; totalPages: number; count: number; pageSize: number };
 }
 
-export default function PaymentsView({ rows, stats, chartData, filters }: Props) {
+export default function PaymentsView({ rows, stats, chartData, filters, pagination }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [exportPending, startExport] = useTransition();
@@ -214,10 +217,22 @@ export default function PaymentsView({ rows, stats, chartData, filters }: Props)
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.from ? { from: filters.from } : {}),
       ...(filters.to ? { to: filters.to } : {}),
+      pageSize: String(pagination.pageSize),
       ...overrides,
     };
     Object.entries(merged).forEach(([k, v]) => v && params.set(k, v));
     router.push(`/admin/payments?${params.toString()}`);
+  }
+
+  function pageUrl(p: number, ps?: number) {
+    const params = new URLSearchParams();
+    if (filters.method) params.set("method", filters.method);
+    if (filters.status) params.set("status", filters.status);
+    if (filters.from) params.set("from", filters.from);
+    if (filters.to) params.set("to", filters.to);
+    params.set("pageSize", String(ps ?? pagination.pageSize));
+    params.set("page", String(p));
+    return `/admin/payments?${params.toString()}`;
   }
 
   function handleExport() {
@@ -359,8 +374,26 @@ export default function PaymentsView({ rows, stats, chartData, filters }: Props)
 
           {/* Count badge */}
           <span className="rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground whitespace-nowrap">
-            {search ? `${filtered.length} shown` : `${rows.length} transactions`}
+            {search ? `${filtered.length} shown` : `${pagination.count} total`}
           </span>
+
+          {/* Rows per page */}
+          <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+            <span>Rows:</span>
+            {PAGE_SIZES.map((s) => (
+              <a
+                key={s}
+                href={pageUrl(1, s)}
+                className={`flex h-7 w-9 items-center justify-center rounded-md border text-xs transition-colors ${
+                  pagination.pageSize === s
+                    ? "border-primary bg-primary/10 text-primary font-medium"
+                    : "border-border hover:bg-muted"
+                }`}
+              >
+                {s}
+              </a>
+            ))}
+          </div>
 
           {/* Clear filters link */}
           {(filters.method || filters.status || filters.from || filters.to) && (
@@ -429,6 +462,33 @@ export default function PaymentsView({ rows, stats, chartData, filters }: Props)
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border text-sm">
+            <p className="text-muted-foreground text-xs">
+              Page {pagination.page} of {pagination.totalPages} · {pagination.count} transactions
+            </p>
+            <div className="flex gap-2">
+              {pagination.page > 1 && (
+                <a
+                  href={pageUrl(pagination.page - 1)}
+                  className="h-8 rounded-lg border border-border bg-background px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center"
+                >
+                  Previous
+                </a>
+              )}
+              {pagination.page < pagination.totalPages && (
+                <a
+                  href={pageUrl(pagination.page + 1)}
+                  className="h-8 rounded-lg border border-border bg-background px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center"
+                >
+                  Next
+                </a>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

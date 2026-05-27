@@ -103,7 +103,8 @@ async function upsertDistance(
   service: ReturnType<typeof createServiceClient>,
   fromId: string,
   toId: string,
-  distKm: number
+  distKm: number,
+  durationMin?: number
 ) {
   const { data: existing } = await service
     .from("distances")
@@ -113,11 +114,19 @@ async function upsertDistance(
     .maybeSingle();
 
   if (existing) {
-    await service.from("distances").update({ distance_km: distKm }).eq("id", existing.id);
+    await service.from("distances").update({
+      distance_km: distKm,
+      ...(durationMin !== undefined ? { duration_minutes: durationMin } : {}),
+    }).eq("id", existing.id);
   } else {
     await service
       .from("distances")
-      .insert({ from_terminal_id: fromId, to_terminal_id: toId, distance_km: distKm });
+      .insert({
+        from_terminal_id: fromId,
+        to_terminal_id: toId,
+        distance_km: distKm,
+        ...(durationMin !== undefined ? { duration_minutes: durationMin } : {}),
+      });
   }
 }
 
@@ -147,6 +156,7 @@ export type RouteModalData = {
   end_terminal_id: string;
   via_ids: string[];
   distance_km: string;
+  duration_min: string;
   fare_etb: string;
   is_active: boolean;
   fareId?: string | null;
@@ -181,8 +191,9 @@ export async function addRoute(
   if (error || !route) return { error: error?.message ?? "Failed to create route." };
 
   const distKm = parseFloat(data.distance_km);
+  const durationMin = parseFloat(data.duration_min);
   if (!isNaN(distKm) && distKm > 0)
-    await upsertDistance(service, data.start_terminal_id, data.end_terminal_id, distKm);
+    await upsertDistance(service, data.start_terminal_id, data.end_terminal_id, distKm, !isNaN(durationMin) ? durationMin : undefined);
 
   const fareEtb = parseFloat(data.fare_etb);
   if (!isNaN(fareEtb) && fareEtb > 0)
@@ -221,8 +232,9 @@ export async function editRoute(
   if (error) return { error: error.message };
 
   const distKm = parseFloat(data.distance_km);
+  const durationMin = parseFloat(data.duration_min);
   if (!isNaN(distKm) && distKm > 0)
-    await upsertDistance(service, data.start_terminal_id, data.end_terminal_id, distKm);
+    await upsertDistance(service, data.start_terminal_id, data.end_terminal_id, distKm, !isNaN(durationMin) ? durationMin : undefined);
 
   const fareEtb = parseFloat(data.fare_etb);
   if (!isNaN(fareEtb) && fareEtb > 0)

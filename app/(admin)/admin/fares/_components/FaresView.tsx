@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil, Check, X, Search, Download } from "lucide-react";
+import { Pencil, Check, X, Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { updateFareInline, exportFares } from "@/app/(admin)/admin/_actions/fares";
 import type { FareRow } from "../page";
 import ImportFaresButton from "./ImportFaresButton";
@@ -10,22 +10,37 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+const PAGE_SIZES = [10, 25, 50];
+
 export default function FaresView({ rows }: { rows: FareRow[] }) {
   const [filter, setFilter] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDist, setEditDist] = useState("");
+  const [editDuration, setEditDuration] = useState("");
   const [editFare, setEditFare] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savePending, startSave] = useTransition();
   const [exportPending, startExport] = useTransition();
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
 
   const filtered = rows.filter((r) =>
     r.routeName.toLowerCase().includes(filter.toLowerCase())
   );
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paged = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  function handleFilter(v: string) {
+    setFilter(v);
+    setPage(1);
+  }
+
   function startEdit(row: FareRow) {
     setEditingId(row.id);
     setEditDist(row.distanceKm?.toString() ?? "");
+    setEditDuration(row.durationMin?.toString() ?? "");
     setEditFare(row.amount.toString());
     setSaveError(null);
   }
@@ -38,6 +53,7 @@ export default function FaresView({ rows }: { rows: FareRow[] }) {
   function handleSave(row: FareRow) {
     const amount = parseFloat(editFare);
     const distKm = parseFloat(editDist);
+    const durationMin = parseFloat(editDuration);
     if (isNaN(amount) || amount <= 0) {
       setSaveError("Enter a valid fare amount.");
       return;
@@ -49,6 +65,7 @@ export default function FaresView({ rows }: { rows: FareRow[] }) {
         startTerminalId: row.startTerminalId,
         endTerminalId: row.endTerminalId,
         distanceKm: isNaN(distKm) ? 0 : distKm,
+        durationMin: isNaN(durationMin) ? undefined : durationMin,
       });
       if (res.error) {
         setSaveError(res.error);
@@ -81,20 +98,37 @@ export default function FaresView({ rows }: { rows: FareRow[] }) {
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         {/* Toolbar */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-          <div className="relative flex-1 max-w-xs">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border flex-wrap">
+          <div className="relative flex-1 min-w-48 max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <input
               type="text"
               placeholder="Filter routes..."
               value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              onChange={(e) => handleFilter(e.target.value)}
               className="w-full h-9 rounded-lg border border-border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <span className="rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground whitespace-nowrap">
             {filtered.length} routes
           </span>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>Rows:</span>
+            {PAGE_SIZES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => { setPageSize(s); setPage(1); }}
+                className={`h-7 w-9 rounded-md border text-xs transition-colors ${
+                  pageSize === s
+                    ? "border-primary bg-primary/10 text-primary font-medium"
+                    : "border-border hover:bg-muted"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
           <div className="flex-1" />
           <ImportFaresButton />
           <button
@@ -115,13 +149,14 @@ export default function FaresView({ rows }: { rows: FareRow[] }) {
               <tr className="border-b border-border">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Route</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Distance (km)</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Duration (min)</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Fare (ETB)</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Last Updated</th>
                 <th className="w-20 px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => {
+              {paged.map((row) => {
                 const isEditing = editingId === row.id;
                 return (
                   <tr
@@ -143,6 +178,23 @@ export default function FaresView({ rows }: { rows: FareRow[] }) {
                       ) : (
                         <span className="text-muted-foreground">
                           {row.distanceKm != null ? `${row.distanceKm} km` : "—"}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={editDuration}
+                          onChange={(e) => setEditDuration(e.target.value)}
+                          className="w-24 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">
+                          {row.durationMin != null ? `${row.durationMin} min` : "—"}
                         </span>
                       )}
                     </td>
@@ -201,9 +253,9 @@ export default function FaresView({ rows }: { rows: FareRow[] }) {
                 );
               })}
 
-              {filtered.length === 0 && (
+              {paged.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground text-sm">
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground text-sm">
                     {filter ? "No routes match your filter." : "No fares configured."}
                   </td>
                 </tr>
@@ -218,10 +270,34 @@ export default function FaresView({ rows }: { rows: FareRow[] }) {
           </div>
         )}
 
-        <div className="px-4 py-3 border-t border-border">
+        {/* Footer: pagination + hint */}
+        <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            Click the edit icon on any row to modify fares and distances inline. Changes are highlighted until saved.
+            Click the edit icon on any row to modify fares, distances, and durations inline.
           </p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="px-2 text-xs text-muted-foreground">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

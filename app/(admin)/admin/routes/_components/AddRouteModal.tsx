@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { Plus, X, MapPin } from "lucide-react";
+import { Plus, X, MapPin, ChevronUp, ChevronDown } from "lucide-react";
 import { addRoute } from "@/app/(admin)/admin/_actions/routes";
 
 export type TerminalOption = { id: string; name: string; city: string };
@@ -40,6 +40,16 @@ export default function AddRouteModal({ terminals }: { terminals: TerminalOption
     setViaIds((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function moveViaStop(index: number, dir: -1 | 1) {
+    setViaIds((prev) => {
+      const next = [...prev];
+      const swapIdx = index + dir;
+      if (swapIdx < 0 || swapIdx >= next.length) return prev;
+      [next[index], next[swapIdx]] = [next[swapIdx], next[index]];
+      return next;
+    });
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -51,6 +61,7 @@ export default function AddRouteModal({ terminals }: { terminals: TerminalOption
         end_terminal_id: toId,
         via_ids: viaIds.filter(Boolean),
         distance_km: (fd.get("distance_km") as string) ?? "",
+        duration_min: (fd.get("duration_min") as string) ?? "",
         fare_etb: (fd.get("fare_etb") as string) ?? "",
         is_active: isActive,
       });
@@ -134,6 +145,24 @@ export default function AddRouteModal({ terminals }: { terminals: TerminalOption
                             <option key={t.id} value={t.id}>{t.name} ({t.city})</option>
                           ))}
                         </select>
+                        <div className="flex flex-col gap-0.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => moveViaStop(i, -1)}
+                            disabled={i === 0}
+                            className="flex h-4 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 transition-colors"
+                          >
+                            <ChevronUp size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveViaStop(i, 1)}
+                            disabled={i === viaIds.length - 1}
+                            className="flex h-4 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 transition-colors"
+                          >
+                            <ChevronDown size={12} />
+                          </button>
+                        </div>
                         <button
                           type="button"
                           onClick={() => removeViaStop(i)}
@@ -157,11 +186,18 @@ export default function AddRouteModal({ terminals }: { terminals: TerminalOption
                 </select>
               </div>
 
-              {/* Distance */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium">Distance (km)</label>
-                <input name="distance_km" type="number" step="any" min="0" placeholder="e.g. 24"
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              {/* Distance + Duration side by side */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Distance (km)</label>
+                  <input name="distance_km" type="number" step="any" min="0" placeholder="e.g. 24"
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Est. Duration (min)</label>
+                  <input name="duration_min" type="number" step="1" min="0" placeholder="e.g. 45"
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                </div>
               </div>
 
               {/* Fare ETB */}

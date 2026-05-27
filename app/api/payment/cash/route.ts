@@ -1,7 +1,9 @@
 // FR-PA-06
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { insertUserNotification } from "@/lib/notifications";
 
 export async function POST(request: NextRequest) {
   const { tripId } = await request.json();
@@ -41,6 +43,15 @@ export async function POST(request: NextRequest) {
   });
 
   await serviceClient.from("trips").update({ status: "paid" }).eq("id", tripId);
+
+  await insertUserNotification(
+    user.id,
+    "Payment confirmed",
+    `Your cash payment of ETB ${Number(trip.fare_amount ?? 0).toFixed(2)} has been received. Thank you for travelling with TaxiFlow.`,
+    "success"
+  );
+
+  revalidatePath("/notifications");
 
   return NextResponse.json({ success: true });
 }

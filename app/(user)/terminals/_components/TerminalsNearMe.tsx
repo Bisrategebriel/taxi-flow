@@ -2,10 +2,12 @@
 // FR-NT-02, FR-NT-03, FR-NT-04, FR-NT-05
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { LocateFixed, Loader2, MapPin, Search } from "lucide-react";
+import { LocateFixed, Loader2, MapPin, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { haversine } from "@/lib/utils/haversine";
 import TerminalsMap from "@/components/map/TerminalsMap";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 5;
 
 interface Terminal {
   id: string;
@@ -25,6 +27,7 @@ export default function TerminalsNearMe({ terminals }: { terminals: Terminal[] }
   const [geoState, setGeoState] = useState<GeoState>("idle");
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
 
   const sorted = useMemo<TerminalWithDist[]>(() => {
     if (!userLoc) return terminals.map((t) => ({ ...t, distKm: null }));
@@ -49,13 +52,22 @@ export default function TerminalsNearMe({ terminals }: { terminals: Terminal[] }
   }
 
   const trimmed = query.trim().toLowerCase();
-  const visible = trimmed
+  const filtered = trimmed
     ? sorted.filter(
         (t) =>
           t.name.toLowerCase().includes(trimmed) ||
           t.city.toLowerCase().includes(trimmed)
       )
     : sorted;
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const currentPage = Math.min(page, Math.max(1, totalPages));
+  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  function handleQueryChange(q: string) {
+    setQuery(q);
+    setPage(1);
+  }
 
   return (
     <div className="space-y-4">
@@ -73,7 +85,7 @@ export default function TerminalsNearMe({ terminals }: { terminals: Terminal[] }
             ? "Sorted by distance from your location"
             : geoState === "denied"
             ? "Location access denied — showing all terminals"
-            : `${visible.length} terminal${visible.length !== 1 ? "s" : ""}`}
+            : `${filtered.length} terminal${filtered.length !== 1 ? "s" : ""}`}
         </p>
         <button
           type="button"
@@ -104,7 +116,7 @@ export default function TerminalsNearMe({ terminals }: { terminals: Terminal[] }
           type="text"
           placeholder="Search terminals…"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => handleQueryChange(e.target.value)}
           className="w-full rounded-xl border border-border bg-background pl-9 pr-4 py-2.5 text-sm
             text-foreground placeholder:text-muted-foreground
             focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
@@ -146,7 +158,43 @@ export default function TerminalsNearMe({ terminals }: { terminals: Terminal[] }
             </div>
           </li>
         ))}
+
+        {visible.length === 0 && (
+          <li className="text-center py-6 text-sm text-muted-foreground">
+            No terminals found.
+          </li>
+        )}
       </ul>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-1">
+          <p className="text-xs text-muted-foreground">
+            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <span className="text-xs font-medium">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

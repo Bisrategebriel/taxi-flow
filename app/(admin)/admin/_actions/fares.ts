@@ -62,6 +62,7 @@ export type InlineUpdatePayload = {
   startTerminalId: string;
   endTerminalId: string;
   distanceKm: number;
+  durationMin?: number;
 };
 
 export async function updateFareInline(
@@ -76,7 +77,7 @@ export async function updateFareInline(
     .eq("id", payload.fareId);
   if (fareError) return { error: fareError.message };
 
-  if (payload.distanceKm > 0) {
+  if (payload.distanceKm > 0 || (payload.durationMin !== undefined && payload.durationMin > 0)) {
     const { data: existing } = await service
       .from("distances")
       .select("id")
@@ -87,13 +88,17 @@ export async function updateFareInline(
     if (existing) {
       await service
         .from("distances")
-        .update({ distance_km: payload.distanceKm })
+        .update({
+          ...(payload.distanceKm > 0 ? { distance_km: payload.distanceKm } : {}),
+          ...(payload.durationMin !== undefined && payload.durationMin > 0 ? { duration_minutes: payload.durationMin } : {}),
+        })
         .eq("id", existing.id);
-    } else {
+    } else if (payload.distanceKm > 0) {
       await service.from("distances").insert({
         from_terminal_id: payload.startTerminalId,
         to_terminal_id: payload.endTerminalId,
         distance_km: payload.distanceKm,
+        ...(payload.durationMin !== undefined && payload.durationMin > 0 ? { duration_minutes: payload.durationMin } : {}),
       });
     }
   }

@@ -1,16 +1,17 @@
 // FR-RS-03, FR-RS-04, FR-RS-05, FR-FI-01..03, FR-MP-01..05
 import { Suspense } from "react";
 import Link from "next/link";
-import { MapPinOff, ArrowRight, ArrowLeft, Route, Clock, DollarSign, ChevronRight } from "lucide-react";
+import { MapPinOff, ArrowRight, ArrowLeft, Route, Clock, Banknote } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDirections } from "@/lib/ors/client";
 import { buttonVariants } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { cn } from "@/lib/utils";
 import RouteMap from "@/components/map/RouteMap";
 import SaveRecentSearch from "@/app/(user)/route-search/result/_components/SaveRecentSearch";
 import RouteStops from "@/app/(user)/route-search/result/_components/RouteStops";
 import FareBreakdown from "@/app/(user)/route-search/result/_components/FareBreakdown";
+import ReverseRouteButton from "@/app/(user)/route-search/result/_components/ReverseRouteButton";
+import StartTripButton from "@/app/(user)/route-search/result/_components/StartTripButton";
 
 interface PageProps {
   searchParams: Promise<{ from?: string; to?: string }>;
@@ -240,6 +241,7 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
         >
           <ArrowLeft size={18} />
         </Link>
+        <ReverseRouteButton fromId={fromId} toId={toId} />
       </div>
 
       <div className="px-4 mt-4 space-y-4 max-w-lg mx-auto md:max-w-none">
@@ -247,22 +249,20 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
         {/* Route info card */}
         <Card>
           <CardContent className="p-4 space-y-3">
-            <div className="flex items-start justify-between gap-2">
-              <h1 className="text-base font-semibold text-foreground leading-tight">
-                {route.name}
-              </h1>
-              {isReversed && (
-                <span className="shrink-0 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 text-[11px] font-medium">
-                  Reverse
-                </span>
-              )}
-            </div>
+            <h1 className="text-base font-semibold text-foreground leading-tight">
+              {route.name}
+            </h1>
 
             {/* From → To */}
             <div className="flex items-center gap-2 text-sm">
               <span className="font-medium text-primary">{fromTerminal.name}</span>
               <ArrowRight size={14} className="shrink-0 text-muted-foreground" />
               <span className="font-medium text-foreground">{toTerminal.name}</span>
+              {isReversed && (
+                <span className="ml-auto shrink-0 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 text-[11px] font-medium">
+                  Reverse
+                </span>
+              )}
             </div>
 
             {/* Distance · Duration · Fare */}
@@ -283,9 +283,9 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
                   <span className="text-[11px] text-muted-foreground">Duration</span>
                 </div>
                 <div className="flex flex-col items-center gap-1 px-2">
-                  <DollarSign size={16} className="text-primary" />
+                  <Banknote size={16} className="text-primary" />
                   <span className="text-base font-bold text-foreground leading-none">
-                    {fare ? `${Number(fare.amount).toFixed(2)}` : "—"}
+                    {fare ? `ETB ${Number(fare.amount).toFixed(2)}` : "—"}
                   </span>
                   <span className="text-[11px] text-muted-foreground">Fare</span>
                 </div>
@@ -312,13 +312,9 @@ export default async function RouteResultPage({ searchParams }: PageProps) {
         </Card>
 
         {/* Start Trip */}
-        <Link
+        <StartTripButton
           href={`/trip?from=${fromId}&to=${toId}&routeId=${route.id}${fare ? `&fare=${fare.amount}` : ""}`}
-          className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 h-12")}
-        >
-          Start Trip
-          <ChevronRight size={18} />
-        </Link>
+        />
 
       </div>
     </div>
