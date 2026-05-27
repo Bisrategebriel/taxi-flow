@@ -5,12 +5,14 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { getUserNotifications } from "@/app/(admin)/admin/_actions/notifications";
 import { signout } from "@/app/auth/signout/actions";
 import {
-  Bell, CreditCard, Shield, Settings, ChevronRight, LogOut,
-  Camera, MapPin, Phone, Mail, CheckCircle2, AlertCircle,
-  Globe, Home, Briefcase, Plus, Clock, Navigation2, RotateCcw,
-  KeyRound, FileText, Download, Trash2, UserX, Users,
+  Bell, CreditCard, ChevronRight, LogOut,
+  MapPin, Phone, Mail, CheckCircle2, AlertCircle,
+  Globe, Home, Briefcase, Plus, Navigation2,
+  KeyRound, FileText, Download, UserX, Users,
 } from "lucide-react";
 import { tripDisplayId } from "@/lib/utils/trip-id";
+import AvatarUpload from "./_components/AvatarUpload";
+import NotifPrefsToggles from "./_components/NotifPrefsToggles";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -111,17 +113,11 @@ export default async function ProfilePage() {
           <div className="px-5 pb-5">
             {/* Avatar overlapping cover */}
             <div className="flex items-end justify-between -mt-10 mb-3">
-              <div className="relative">
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-card bg-primary text-primary-foreground text-2xl font-bold shadow-lg">
-                  {initials}
-                </div>
-                <Link
-                  href="/settings/profile"
-                  className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
-                >
-                  <Camera size={11} />
-                </Link>
-              </div>
+              <AvatarUpload
+                userId={user.id}
+                avatarUrl={profile?.avatar_url ?? null}
+                initials={initials}
+              />
               <Link
                 href="/settings/profile"
                 className="flex items-center gap-1.5 h-8 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground hover:bg-muted transition-colors"
@@ -269,7 +265,7 @@ export default async function ProfilePage() {
             </div>
             <div className="border-t border-border pt-3">
               <Link
-                href="/trips"
+                href="/trip-history"
                 className="flex items-center justify-between text-sm text-primary hover:underline"
               >
                 View payment history
@@ -290,11 +286,6 @@ export default async function ProfilePage() {
               const to = trip.end_terminal_id ? termMap.get(trip.end_terminal_id) : null;
               const routeLabel = from && to ? `${from} → ${to}` : route?.name ?? "Trip";
               const date = new Date(trip.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-              const qp = new URLSearchParams({
-                from: trip.start_terminal_id ?? "",
-                to: trip.end_terminal_id ?? "",
-                ...(trip.route ? { routeId: trip.route as unknown as string } : {}),
-              });
               return (
                 <div key={trip.id}>
                   {i > 0 && <div className="border-t border-border" />}
@@ -311,20 +302,13 @@ export default async function ProfilePage() {
                         </span>
                       </div>
                     </div>
-                    <Link
-                      href={`/route-search/result?${qp.toString()}`}
-                      className="shrink-0 flex items-center gap-1 h-7 rounded-lg border border-border bg-background px-2.5 text-xs font-medium hover:bg-muted transition-colors"
-                    >
-                      <RotateCcw size={11} />
-                      Re-book
-                    </Link>
                   </div>
                 </div>
               );
             })
           )}
           <div className="border-t border-border">
-            <Link href="/trips" className="flex items-center justify-between px-4 py-3 text-sm text-primary hover:bg-muted transition-colors">
+            <Link href="/trip-history" className="flex items-center justify-between px-4 py-3 text-sm text-primary hover:bg-muted transition-colors">
               View all trips
               <ChevronRight size={14} />
             </Link>
@@ -345,14 +329,17 @@ export default async function ProfilePage() {
             </div>
             <Link href="/settings/profile#preferences" className="text-xs text-primary hover:underline">Change</Link>
           </div>
-          <div className="border-t border-border px-4 py-3 space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Notifications</p>
-            <PrefRow label="Trip updates" on={profile?.notif_trip_updates ?? true} />
-            <PrefRow label="Payment receipts" on={profile?.notif_payment_receipts ?? true} />
-            <PrefRow label="Promotions" on={profile?.notif_promotions ?? false} />
-            <div className="pt-1">
-              <Link href="/settings/profile#preferences" className="text-xs text-primary hover:underline">Edit preferences</Link>
+          <div className="border-t border-border">
+            <div className="px-4 pt-3 pb-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notifications</p>
             </div>
+            <NotifPrefsToggles
+              prefs={{
+                notif_trip_updates: profile?.notif_trip_updates ?? true,
+                notif_payment_receipts: profile?.notif_payment_receipts ?? true,
+                notif_promotions: profile?.notif_promotions ?? false,
+              }}
+            />
           </div>
         </SectionCard>
 
@@ -411,7 +398,7 @@ export default async function ProfilePage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground pb-2">
-          TaxiFlow v2.4.1 · Made with care
+          TaxiFlow v1.0.0 · Built with purpose &copy; 2026
         </p>
       </div>
     </div>
@@ -485,17 +472,6 @@ function PlaceRow({ icon, label, address }: { icon: React.ReactNode; label: stri
       <Link href="/settings/profile#places" className="shrink-0 text-xs text-primary hover:underline ml-3">
         {address ? "Edit" : "Set"}
       </Link>
-    </div>
-  );
-}
-
-function PrefRow({ label, on }: { label: string; on: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-1">
-      <p className="text-sm text-foreground">{label}</p>
-      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${on ? "border-green-500/60 text-green-400 bg-green-500/10" : "border-border text-muted-foreground"}`}>
-        {on ? "On" : "Off"}
-      </span>
     </div>
   );
 }
