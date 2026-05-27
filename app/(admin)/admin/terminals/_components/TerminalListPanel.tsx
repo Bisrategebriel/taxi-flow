@@ -5,7 +5,9 @@ import { MapPin, Search, Pencil, Route, ChevronLeft, ChevronRight } from "lucide
 import ToggleActiveButton from "./ToggleActiveButton";
 import EditTerminalModal, { type TerminalEditData } from "./EditTerminalModal";
 
-const PAGE_SIZE = 10;
+const ALLOWED_PAGE_SIZES = [5, 10, 25, 50] as const;
+type PageSize = (typeof ALLOWED_PAGE_SIZES)[number];
+const DEFAULT_PAGE_SIZE: PageSize = 10;
 
 export type TerminalItem = {
   id: string;
@@ -20,6 +22,7 @@ export type TerminalItem = {
 export default function TerminalListPanel({ terminals }: { terminals: TerminalItem[] }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [editing, setEditing] = useState<TerminalEditData | null>(null);
 
   const filtered = search
@@ -30,9 +33,9 @@ export default function TerminalListPanel({ terminals }: { terminals: TerminalIt
       )
     : terminals;
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const visible = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <>
@@ -110,12 +113,31 @@ export default function TerminalListPanel({ terminals }: { terminals: TerminalIt
           )}
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-1 text-sm">
-            <span className="text-xs text-muted-foreground">
-              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+        {/* Pagination + rows-per-page */}
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>Rows</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value) as PageSize);
+                setPage(1);
+              }}
+              className="h-7 rounded-md border border-border bg-background px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {ALLOWED_PAGE_SIZES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <span className="tabular-nums">
+              {filtered.length === 0
+                ? "0"
+                : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, filtered.length)}`
+              } of {filtered.length}
             </span>
+          </div>
+
+          {totalPages > 1 && (
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -135,8 +157,8 @@ export default function TerminalListPanel({ terminals }: { terminals: TerminalIt
                 <ChevronRight size={14} />
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {editing && (
