@@ -10,7 +10,6 @@ import {
   Globe, Home, Briefcase, Plus, Navigation2,
   KeyRound, FileText, Download, UserX, Users,
 } from "lucide-react";
-import { tripDisplayId } from "@/lib/utils/trip-id";
 import AvatarUpload from "./_components/AvatarUpload";
 import NotifPrefsToggles from "./_components/NotifPrefsToggles";
 
@@ -351,7 +350,7 @@ export default async function ProfilePage() {
             { href: "/privacy-policy", icon: FileText, label: "Privacy Policy" },
             { href: "/terms", icon: FileText, label: "Terms of Service" },
             { href: "/settings/download-data", icon: Download, label: "Download My Data" },
-          ].map((item, i, arr) => {
+          ].map((item, i) => {
             const Icon = item.icon;
             return (
               <div key={item.href}>

@@ -31,6 +31,7 @@ export default function SystemSettingsCard({
   // Clear textarea after successful publish
   useEffect(() => {
     if (announcementState?.success) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnnouncementText("");
     }
   }, [announcementState?.success]);
