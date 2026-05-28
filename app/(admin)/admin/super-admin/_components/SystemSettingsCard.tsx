@@ -1,24 +1,40 @@
 "use client";
 
 // FR-SS-02, FR-SS-03
-import { useState, useActionState, useTransition } from "react";
-import { Megaphone, Trash2, CheckCircle } from "lucide-react";
+import { useState, useActionState, useTransition, useEffect } from "react";
+import { Megaphone, Trash2, CheckCircle, Clock } from "lucide-react";
 import {
   setBroadcastAnnouncement,
   resetNonCriticalData,
   type SuperAdminState,
 } from "@/app/(admin)/admin/_actions/super-admin";
 import type { SettingsMap } from "@/app/(admin)/admin/_actions/settings";
+import type { AnnouncementHistoryItem } from "@/app/(admin)/admin/super-admin/page";
 
-export default function SystemSettingsCard({ settings }: { settings: SettingsMap }) {
+export default function SystemSettingsCard({
+  settings,
+  announcementHistory,
+}: {
+  settings: SettingsMap;
+  announcementHistory: AnnouncementHistoryItem[];
+}) {
   const rawAnnouncement = settings["announcement"];
   const currentAnnouncement =
     rawAnnouncement && rawAnnouncement !== "null"
       ? String(rawAnnouncement)
       : "";
 
+  const [announcementText, setAnnouncementText] = useState(currentAnnouncement);
   const [announcementState, announcementAction, announcementPending] =
     useActionState(setBroadcastAnnouncement, {});
+
+  // Clear textarea after successful publish
+  useEffect(() => {
+    if (announcementState?.success) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAnnouncementText("");
+    }
+  }, [announcementState?.success]);
 
   const [resetPending, startReset] = useTransition();
   const [resetResult, setResetResult] = useState<SuperAdminState | null>(null);
@@ -59,7 +75,8 @@ export default function SystemSettingsCard({ settings }: { settings: SettingsMap
         <form action={announcementAction} className="space-y-2">
           <textarea
             name="announcement"
-            defaultValue={currentAnnouncement}
+            value={announcementText}
+            onChange={(e) => setAnnouncementText(e.target.value)}
             rows={3}
             placeholder="e.g. Scheduled maintenance on Saturday 10pm–2am UTC"
             className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground/50"
@@ -82,6 +99,46 @@ export default function SystemSettingsCard({ settings }: { settings: SettingsMap
             )}
           </div>
         </form>
+
+        {/* Announcement history */}
+        {announcementHistory.length > 0 && (
+          <div className="mt-4">
+            <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+              <Clock size={11} /> Previous Announcements
+            </p>
+            <div className="space-y-1.5">
+              {announcementHistory.map((item, i) => (
+                <div
+                  key={i}
+                  className="rounded-lg border border-border bg-muted/30 px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className={`text-[10px] font-semibold uppercase tracking-wide ${
+                      item.action === "ANNOUNCEMENT_CLEARED"
+                        ? "text-muted-foreground"
+                        : "text-primary"
+                    }`}>
+                      {item.action === "ANNOUNCEMENT_CLEARED" ? "Cleared" : "Published"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(item.created_at).toLocaleString([], {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  {item.text ? (
+                    <p className="text-xs text-foreground line-clamp-2">{item.text}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Banner cleared</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Reset non-critical data */}

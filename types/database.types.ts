@@ -212,6 +212,16 @@ export type Database = {
           phone: string | null
           role: string
           updated_at: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          auto_share_location: boolean
+          home_address: string | null
+          work_address: string | null
+          custom_places: unknown[]
+          language_pref: string
+          notif_trip_updates: boolean
+          notif_payment_receipts: boolean
+          notif_promotions: boolean
         }
         Insert: {
           avatar_url?: string | null
@@ -222,6 +232,16 @@ export type Database = {
           phone?: string | null
           role?: string
           updated_at?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          auto_share_location?: boolean
+          home_address?: string | null
+          work_address?: string | null
+          custom_places?: unknown[]
+          language_pref?: string
+          notif_trip_updates?: boolean
+          notif_payment_receipts?: boolean
+          notif_promotions?: boolean
         }
         Update: {
           avatar_url?: string | null
@@ -232,6 +252,16 @@ export type Database = {
           phone?: string | null
           role?: string
           updated_at?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          auto_share_location?: boolean
+          home_address?: string | null
+          work_address?: string | null
+          custom_places?: unknown[]
+          language_pref?: string
+          notif_trip_updates?: boolean
+          notif_payment_receipts?: boolean
+          notif_promotions?: boolean
         }
         Relationships: []
       }
