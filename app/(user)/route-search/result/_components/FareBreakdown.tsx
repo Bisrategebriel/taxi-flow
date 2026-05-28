@@ -11,12 +11,6 @@ interface Props {
   segments: Segment[];
 }
 
-function toSymbol(code: string | null): string {
-  if (!code) return "";
-  const map: Record<string, string> = { GHS: "₵", GHC: "₵", USD: "$", EUR: "€", GBP: "£" };
-  return map[code] ?? code;
-}
-
 export default function FareBreakdown({ segments }: Props) {
   if (segments.length === 0) return null;
 
@@ -35,7 +29,7 @@ export default function FareBreakdown({ segments }: Props) {
           </span>
           <span className="shrink-0 text-sm font-semibold text-foreground">
             {seg.amount != null
-              ? `${toSymbol(seg.currency)} ${Number(seg.amount).toFixed(2)}`
+              ? `ETB ${Number(seg.amount).toFixed(2)}`
               : "—"}
           </span>
         </div>
