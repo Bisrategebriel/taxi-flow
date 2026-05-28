@@ -1,5 +1,6 @@
 // FR-LP-01..10
 import { Suspense } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import Container from "@/components/ui/Container";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -96,53 +97,25 @@ function IconArrowRight() {
   );
 }
 
-// ── Taxi / terminal photo placeholders ───────────────────────────────────────
-// Replace the inner <div> with <Image src="..." fill className="object-cover" alt="..." />
-// once you add photos to /public/images/. The overlay and caption stay as-is.
-
 function PhotoCard({
-  icon,
+  imageSrc,
   title,
   subtitle,
-  accentFrom,
-  accentTo,
-  filename,
 }: {
-  icon: React.ReactNode;
+  imageSrc: string;
   title: string;
   subtitle: string;
-  accentFrom: string;
-  accentTo: string;
-  filename: string;
 }) {
   return (
     <div className="group relative aspect-[16/10] overflow-hidden rounded-2xl border border-border/60 transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_24px_oklch(0.65_0.12_242/0.16)]">
-      {/* ↓ swap this div for <Image> once photos are available */}
-      <div
-        className="absolute inset-0 transition-transform duration-500 group-hover:scale-105"
-        style={{ background: `linear-gradient(135deg, ${accentFrom}, ${accentTo})` }}
-        aria-hidden="true"
-      >
-        {/* Subtle inner grid */}
-        <div
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)
-            `,
-            backgroundSize: "28px 28px",
-          }}
-        />
-        {/* Placeholder icon */}
-        <div className="flex h-full items-center justify-center text-white/20">
-          <div className="flex flex-col items-center gap-2">
-            <div className="scale-[2.5]">{icon}</div>
-            <span className="mt-4 text-xs font-mono text-white/30">{filename}</span>
-          </div>
-        </div>
-      </div>
-
+      <Image
+        src={imageSrc}
+        alt={title}
+        fill
+        sizes="(max-width: 768px) 100vw, 50vw"
+        className="object-cover transition-transform duration-500 group-hover:scale-105"
+      />
+      <div className="absolute inset-0 bg-black/30" aria-hidden="true" />
       {/* Caption overlay */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-5">
         <p className="font-semibold text-white">{title}</p>
@@ -444,32 +417,14 @@ export default async function LandingPage() {
         <Container maxWidth="2xl">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <PhotoCard
-              icon={
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3" />
-                  <rect x="9" y="11" width="14" height="10" rx="2" />
-                  <circle cx="12" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-                </svg>
-              }
+              imageSrc="/taxi.jpg"
               title="Addis Ababa Minibus Taxis"
               subtitle="The backbone of urban transit for millions of daily commuters"
-              accentFrom="oklch(0.18 0.04 242)"
-              accentTo="oklch(0.13 0.02 220)"
-              filename="/public/images/taxi.jpg"
             />
             <PhotoCard
-              icon={
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="7" width="20" height="14" rx="2" />
-                  <path d="M16 7V5a2 2 0 0 0-4 0v2M8 21v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5" />
-                  <path d="M2 11h20" />
-                </svg>
-              }
+              imageSrc="/terminal.jpg"
               title="City Transit Terminals"
               subtitle="Key connection points linking every district across the city"
-              accentFrom="oklch(0.18 0.03 180)"
-              accentTo="oklch(0.13 0.01 240)"
-              filename="/public/images/terminal.jpg"
             />
           </div>
         </Container>

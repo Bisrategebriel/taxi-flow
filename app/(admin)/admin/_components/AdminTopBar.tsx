@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   Search,
@@ -38,6 +38,25 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/settings":      "System Settings",
 };
 
+const SEARCH_PLACEHOLDER: Record<string, string> = {
+  "/admin/users":      "Search users…",
+  "/admin/terminals":  "Search terminals…",
+  "/admin/routes":     "Search routes…",
+  "/admin/trips":      "Search trips…",
+  "/admin/payments":   "Search payments…",
+  "/admin/fares":      "Search fares…",
+};
+
+/* Pages that support ?search= URL param */
+const SEARCHABLE_PAGES = new Set([
+  "/admin/users",
+  "/admin/terminals",
+  "/admin/routes",
+  "/admin/trips",
+  "/admin/payments",
+  "/admin/fares",
+]);
+
 interface AdminTopBarProps {
   fullName: string | null;
   role: string;
@@ -50,6 +69,41 @@ function timeAgo(isoString: string) {
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
+}
+
+function TopBarSearch({ section }: { section: string | null }) {
+  const router = useRouter();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [value, setValue] = useState("");
+
+  const placeholder = section ? (SEARCH_PLACEHOLDER[section] ?? "Search…") : "Search…";
+
+  function handleChange(raw: string) {
+    setValue(raw);
+    if (!section) return;
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (raw) params.set("search", raw);
+      router.push(raw ? `${section}?${params.toString()}` : section);
+    }, 300);
+  }
+
+  return (
+    <div className="relative">
+      <Search
+        size={14}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+      />
+      <input
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={!section}
+        className="h-8 w-full rounded-md border border-border bg-muted/40 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+      />
+    </div>
+  );
 }
 
 export default function AdminTopBar({ fullName, role, notifications }: AdminTopBarProps) {
@@ -76,6 +130,12 @@ export default function AdminTopBar({ fullName, role, notifications }: AdminTopB
       .filter(([key]) => pathname === key || pathname.startsWith(key + "/"))
       .sort((a, b) => b[0].length - a[0].length)[0]?.[1] ?? "Admin";
 
+  // resolve active searchable section
+  const activeSection =
+    [...SEARCHABLE_PAGES].find(
+      (p) => pathname === p || pathname.startsWith(p + "/")
+    ) ?? null;
+
   const initials = fullName
     ? fullName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : role === "super_admin" ? "SA" : "AD";
@@ -101,16 +161,7 @@ export default function AdminTopBar({ fullName, role, notifications }: AdminTopB
       <h2 className="text-sm font-semibold text-foreground min-w-fit">{title}</h2>
 
       <div className="flex-1 max-w-xs">
-        <div className="relative">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-          />
-          <input
-            placeholder="Search…"
-            className="h-8 w-full rounded-md border border-border bg-muted/40 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
+        <TopBarSearch key={activeSection} section={activeSection} />
       </div>
 
       <div className="ml-auto flex items-center gap-1">

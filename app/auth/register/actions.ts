@@ -2,9 +2,19 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export type RegisterState =
-  | { errors?: { fullName?: string[]; email?: string[]; password?: string[] }; success?: boolean }
+  | {
+      errors?: {
+        fullName?: string[];
+        email?: string[];
+        phone?: string[];
+        password?: string[];
+        confirmPassword?: string[];
+      };
+      success?: boolean;
+    }
   | undefined;
 
 export async function register(
@@ -13,7 +23,9 @@ export async function register(
 ): Promise<RegisterState> {
   const fullName = (formData.get('fullName') as string)?.trim();
   const email = (formData.get('email') as string)?.trim();
+  const phone = (formData.get('phone') as string)?.trim();
   const password = formData.get('password') as string;
+  const confirmPassword = formData.get('confirmPassword') as string;
 
   const errors: NonNullable<RegisterState>['errors'] = {};
 
@@ -23,8 +35,14 @@ export async function register(
   if (!email) {
     errors.email = ['Email is required.'];
   }
+  if (phone && !/^\+?[\d\s\-()]{7,20}$/.test(phone)) {
+    errors.phone = ['Enter a valid phone number.'];
+  }
   if (!password || password.length < 8) {
     errors.password = ['Password must be at least 8 characters.'];
+  }
+  if (password && confirmPassword && password !== confirmPassword) {
+    errors.confirmPassword = ['Passwords do not match.'];
   }
 
   if (Object.keys(errors).length > 0) {
@@ -32,7 +50,7 @@ export async function register(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { full_name: fullName } },
@@ -40,6 +58,12 @@ export async function register(
 
   if (error) {
     return { errors: { email: [error.message] } };
+  }
+
+  // Store phone on the profile row (trigger creates the row on auth.users insert)
+  if (phone && data.user) {
+    const service = createServiceClient();
+    await service.from('profiles').update({ phone }).eq('id', data.user.id);
   }
 
   return { success: true };

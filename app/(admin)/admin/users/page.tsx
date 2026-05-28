@@ -1,11 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import Image from "next/image";
 import { Suspense } from "react";
 import UserActions from "./_components/UserActions";
 import AddUserModal from "./_components/AddUserModal";
 import ImportUsersButton from "./_components/ImportUsersButton";
 import ExportButton from "./_components/ExportButton";
 import UsersToolbar from "./_components/UsersToolbar";
+import UsersPagination from "./_components/UsersPagination";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -37,14 +39,21 @@ function initials(name: string | null) {
     .toUpperCase();
 }
 
+const ALLOWED_PER_PAGE = [10, 25, 50];
+
 /* ─── page ────────────────────────────────────────────────────────────────── */
 
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; status?: string }>;
+  searchParams: Promise<{ search?: string; status?: string; page?: string; perPage?: string }>;
 }) {
-  const { search, status } = await searchParams;
+  const { search, status, page: pageParam, perPage: perPageParam } = await searchParams;
+
+  const perPage = ALLOWED_PER_PAGE.includes(parseInt(perPageParam ?? "", 10))
+    ? parseInt(perPageParam!, 10)
+    : 25;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10));
 
   const supabase = await createClient();
   const {
@@ -61,7 +70,7 @@ export default async function AdminUsersPage({
 
   let query = service
     .from("profiles")
-    .select("id, full_name, role, is_suspended, created_at, phone")
+    .select("id, full_name, role, is_suspended, created_at, phone, avatar_url")
     .order("created_at", { ascending: false });
 
   if (search) query = query.ilike("full_name", `%${search}%`);
@@ -92,6 +101,7 @@ export default async function AdminUsersPage({
     is_suspended: boolean;
     created_at: string;
     phone: string | null;
+    avatar_url: string | null;
     email: string;
     status: "active" | "suspended" | "pending";
     trips: number;
@@ -116,6 +126,12 @@ export default async function AdminUsersPage({
     status && status !== "all"
       ? allRows.filter((r) => r.status === status)
       : allRows;
+
+  /* ── pagination ────────────────────────────────────────────────────────── */
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * perPage;
+  const pageRows = filtered.slice(offset, offset + perPage);
 
   /* ── status badge ──────────────────────────────────────────────────────── */
   function statusClass(s: UserRow["status"]) {
@@ -169,13 +185,13 @@ export default async function AdminUsersPage({
                 <th className="text-left px-5 py-3.5 text-xs font-medium text-muted-foreground">
                   Status
                 </th>
-                <th className="px-5 py-3.5 text-xs font-medium text-muted-foreground text-right">
+                <th className="text-left px-5 py-3.5 text-xs font-medium text-muted-foreground">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => (
+              {pageRows.map((row) => (
                 <tr
                   key={row.id}
                   className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
@@ -183,11 +199,22 @@ export default async function AdminUsersPage({
                   {/* User */}
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold ${avatarColor(row.id)}`}
-                      >
-                        {initials(row.full_name)}
-                      </div>
+                      {row.avatar_url ? (
+                        <Image
+                          src={row.avatar_url}
+                          alt={row.full_name ?? "User avatar"}
+                          width={36}
+                          height={36}
+                          className="h-9 w-9 shrink-0 rounded-full object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold ${avatarColor(row.id)}`}
+                        >
+                          {initials(row.full_name)}
+                        </div>
+                      )}
                       <div>
                         <p className="font-semibold text-foreground leading-snug">
                           {row.full_name ?? "Unknown"}
@@ -227,7 +254,7 @@ export default async function AdminUsersPage({
                   </td>
 
                   {/* Actions */}
-                  <td className="px-5 py-4 text-right">
+                  <td className="px-5 py-4">
                     <UserActions
                       userId={row.id}
                       isSuspended={row.is_suspended}
@@ -238,7 +265,7 @@ export default async function AdminUsersPage({
                 </tr>
               ))}
 
-              {filtered.length === 0 && (
+              {pageRows.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
                     No users found.
@@ -248,6 +275,18 @@ export default async function AdminUsersPage({
             </tbody>
           </table>
         </div>
+
+        {/* ── Pagination ─────────────────────────────────────────────────── */}
+        {filtered.length > 0 && (
+          <Suspense>
+            <UsersPagination
+              page={safePage}
+              perPage={perPage}
+              totalPages={totalPages}
+              totalCount={filtered.length}
+            />
+          </Suspense>
+        )}
       </div>
     </div>
   );
