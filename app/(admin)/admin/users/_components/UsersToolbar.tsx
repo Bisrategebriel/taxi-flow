@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
+
+const STATUS_OPTIONS = [
+  { value: "all", label: "All Status" },
+  { value: "active", label: "Active" },
+  { value: "suspended", label: "Suspended" },
+  { value: "pending", label: "Pending" },
+];
 
 export default function UsersToolbar({ filteredCount }: { filteredCount: number }) {
   const sp = useSearchParams();
@@ -11,6 +18,7 @@ export default function UsersToolbar({ filteredCount }: { filteredCount: number 
 
   const [searchInput, setSearchInput] = useState(sp.get("search") ?? "");
   const currentStatus = sp.get("status") ?? "all";
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   function buildUrl(overrides: Record<string, string>) {
     const params = new URLSearchParams(sp.toString());
@@ -21,11 +29,26 @@ export default function UsersToolbar({ filteredCount }: { filteredCount: number 
         params.delete(key);
       }
     }
+    // reset to page 1 on search/filter change
+    params.delete("page");
     return `${pathname}?${params.toString()}`;
+  }
+
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      router.push(buildUrl({ search: value, status: currentStatus }));
+    }, 300);
+  }
+
+  function handleStatusChange(value: string) {
+    router.push(buildUrl({ search: searchInput, status: value }));
   }
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
+      {/* Search */}
       <div className="relative flex-1 min-w-60">
         <Search
           size={14}
@@ -33,31 +56,29 @@ export default function UsersToolbar({ filteredCount }: { filteredCount: number 
         />
         <input
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              router.push(buildUrl({ search: searchInput, status: currentStatus }));
-            }
-          }}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Search users…"
           className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
-        <SlidersHorizontal size={14} className="text-muted-foreground" />
+      {/* Status filter — shadcn-style select */}
+      <div className="relative shrink-0">
         <select
           value={currentStatus}
-          onChange={(e) =>
-            router.push(buildUrl({ search: searchInput, status: e.target.value }))
-          }
-          className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          onChange={(e) => handleStatusChange(e.target.value)}
+          className="h-9 appearance-none rounded-lg border border-border bg-background pl-3 pr-9 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
         >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-          <option value="pending">Pending</option>
+          {STATUS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
         </select>
+        <ChevronDown
+          size={14}
+          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
       </div>
 
       <span className="text-xs text-muted-foreground px-2.5 py-1 rounded-md border border-border bg-muted/30 shrink-0 ml-auto">

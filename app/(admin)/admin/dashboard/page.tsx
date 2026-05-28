@@ -16,6 +16,9 @@ import {
 import RevenueChart, { type MonthlyDataPoint } from "./_components/RevenueChart";
 import GreetingMessage from "./_components/GreetingMessage";
 import WeeklyTripsChart, { type DailyDataPoint } from "./_components/WeeklyTripsChart";
+import ActiveTripsCard from "./_components/ActiveTripsCard";
+
+export const revalidate = 60;
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -192,7 +195,7 @@ export default async function AdminDashboardPage() {
     return `${Math.floor(s / 86400)}d ago`;
   }
 
-  /* ── KPI cards config ────────────────────────────────────────────────────── */
+  /* ── KPI cards config (Active Trips rendered separately as realtime card) ── */
   const kpis = [
     {
       label: "Total Users",
@@ -200,13 +203,6 @@ export default async function AdminDashboardPage() {
       icon: Users,
       trend: userTrend,
       trendLabel: "vs last week",
-    },
-    {
-      label: "Active Trips",
-      value: (activeTrips ?? 0).toLocaleString(),
-      icon: Car,
-      trend: null,
-      trendLabel: "live now",
     },
     {
       label: "Terminals",
@@ -235,6 +231,9 @@ export default async function AdminDashboardPage() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {/* Active Trips: realtime client component */}
+        <ActiveTripsCard initialCount={activeTrips ?? 0} />
+
         {kpis.map(({ label, value, icon: Icon, trend, trendLabel }) => (
           <div
             key={label}
