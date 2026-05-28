@@ -40,16 +40,45 @@ export function useTripTracking(params: TripTrackingParams): TripTrackingResult 
   useEffect(() => { tripIdRef.current = tripId; }, [tripId]);
 
   // Create trip in DB on mount (skip if resuming)
-  // hasCreatedRef prevents React StrictMode double-invocation from creating 2 trips
   useEffect(() => {
     if (params.initialTripId) return;
+    if (!params.startTerminalId || !params.endTerminalId) return;
     if (hasCreatedRef.current) return;
     hasCreatedRef.current = true;
 
-    let mounted = true;
     async function startTrip() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Reuse any in-progress trip for this exact route (handles React StrictMode
+      // double-mount and rapid re-navigation — both would otherwise insert a duplicate)
+      const { data: existing } = await supabase
+        .from("trips")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("start_terminal_id", params.startTerminalId)
+        .eq("end_terminal_id", params.endTerminalId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        setTripId(existing.id);
+        try {
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              tripId: existing.id,
+              fromId: params.startTerminalId,
+              toId: params.endTerminalId,
+              routeId: params.routeId,
+              fare: params.fareAmount,
+            })
+          );
+        } catch { /* storage blocked */ }
+        return;
+      }
 
       const { data, error } = await supabase
         .from("trips")
@@ -64,7 +93,7 @@ export function useTripTracking(params: TripTrackingParams): TripTrackingResult 
         .select("id")
         .single();
 
-      if (data && mounted) {
+      if (data) {
         setTripId(data.id);
         // Persist to localStorage so ActiveTripBanner can show on other pages
         try {
@@ -84,7 +113,6 @@ export function useTripTracking(params: TripTrackingParams): TripTrackingResult 
     }
 
     startTrip();
-    return () => { mounted = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Subscribe to Realtime channel and start broadcast/snapshot timers once tripId is set
