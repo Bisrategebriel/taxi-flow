@@ -21,6 +21,7 @@ import {
   CardDescription,
 } from "@/components/ui/Card";
 import StripePaymentForm from "./StripePaymentForm";
+import { tripDisplayId } from "@/lib/utils/trip-id";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -160,9 +161,7 @@ export default function PaymentScreen({ trip, breakdown, cancelled }: Props) {
       ? `${trip.start.name} → ${trip.end.name}`
       : "Your trip";
 
-  // Same format as TripInProgress — TFR + 4-digit number from last 4 hex chars
-  const hex4 = trip.id.replace(/-/g, "").slice(-4);
-  const tripRef = `TFR${(parseInt(hex4, 16) % 10000).toString().padStart(4, "0")}`;
+  const tripRef = tripDisplayId(trip.id);
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
