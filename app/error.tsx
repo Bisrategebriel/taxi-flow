@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 
 export default function RootError({
   error,
@@ -27,12 +28,12 @@ export default function RootError({
         >
           Try again
         </button>
-        <a
+        <Link
           href="/"
           className="h-9 rounded-lg border border-border bg-muted px-4 text-sm font-medium leading-9"
         >
           Go home
-        </a>
+        </Link>
       </div>
     </div>
   );
