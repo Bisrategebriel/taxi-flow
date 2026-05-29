@@ -37,8 +37,10 @@ export async function proxy(request: NextRequest) {
 
   const isPublic =
     pathname === '/' ||
+    pathname === '/manifest.webmanifest' ||
     pathname.startsWith('/track/') ||
-    pathname.startsWith('/api/webhooks/');
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/icons/');
 
   const isAuthPath = pathname.startsWith('/auth/');
   const isAdminPath = pathname.startsWith('/admin/');
