@@ -64,7 +64,7 @@ paths:
                 sessionId:
                   type: string
                   format: uuid
-                  description: UUID that groups messages in `chat_logs` for this session.
+                  description: "UUID that groups messages in `chat_logs` for this session."
                   example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
                 history:
                   type: array
@@ -96,7 +96,7 @@ paths:
                 type: string
                 example: "Route 3 stops at Megenagna, Bole, and Kaliti terminals."
         "400":
-          description: `message` is empty or whitespace.
+          description: "`message` is empty or whitespace."
           content:
             text/plain:
               schema:
@@ -151,14 +151,14 @@ paths:
                 properties:
                   clientSecret:
                     type: string
-                    description: Stripe client secret for use with `stripe.confirmPayment()`.
+                    description: "Stripe client secret for use with `stripe.confirmPayment()`."
                     example: "pi_3OZvFQ2eZvKYlo2C1234567_secret_abcdefgh"
                   total:
                     type: number
                     description: Fare amount used as the PaymentIntent amount.
                     example: 45.00
         "400":
-          description: Trip status is not `completed` or `payment_pending`.
+          description: "Trip status is not `completed` or `payment_pending`."
           content:
             application/json:
               schema:
@@ -278,7 +278,7 @@ paths:
                     type: boolean
                     example: true
         "400":
-          description: Trip is not in `active` status.
+          description: "Trip is not in `active` status."
           content:
             application/json:
               schema:
@@ -331,7 +331,7 @@ paths:
                     type: boolean
                     example: true
         "400":
-          description: Trip status is not `completed` or `payment_pending`.
+          description: "Trip status is not `completed` or `payment_pending`."
           content:
             application/json:
               schema:
