@@ -1,0 +1,467 @@
+openapi: 3.0.3
+info:
+  title: TaxiFlow API
+  version: 1.0.0
+  description: |
+    Internal REST API for the TaxiFlow ride-hailing platform.
+
+    ## Authentication
+    All endpoints (except `/webhooks/stripe`) require an active Supabase session.
+    The session cookie is set automatically on login — no manual token handling needed
+    when calling from the browser.
+
+servers:
+  - url: /api
+    description: Current deployment
+
+components:
+  securitySchemes:
+    supabaseCookie:
+      type: apiKey
+      in: cookie
+      name: sb-auth-token
+      description: |
+        Supabase session cookie set on login. Present automatically in same-origin
+        browser requests. Endpoints return 401 if the cookie is missing or expired.
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: Unauthorized
+
+security:
+  - supabaseCookie: []
+
+paths:
+  /chat:
+    post:
+      summary: Send a message to the AI assistant
+      description: |
+        Sends a message to the Groq-powered AI assistant and returns a streaming plain-text
+        response. The model may invoke internal tools (trip lookup, terminal info, etc.)
+        before producing its final reply.
+
+        **Requires** the `ai_chat_enabled` system setting to be `true`.
+
+        The response body is a stream of text chunks (`Content-Type: text/plain`).
+        Consume it with a `ReadableStream` reader on the client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message, sessionId, history]
+              properties:
+                message:
+                  type: string
+                  description: The user's latest message. Must not be empty.
+                  example: "What terminals does route 3 stop at?"
+                sessionId:
+                  type: string
+                  format: uuid
+                  description: UUID that groups messages in `chat_logs` for this session.
+                  example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                history:
+                  type: array
+                  description: Prior turns sent to the model for context.
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role:
+                        type: string
+                        enum: [user, assistant]
+                      content:
+                        type: string
+      responses:
+        "200":
+          description: Streaming plain-text AI response.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                example: "text/plain; charset=utf-8"
+            Cache-Control:
+              schema:
+                type: string
+                example: no-cache
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Route 3 stops at Megenagna, Bole, and Kaliti terminals."
+        "400":
+          description: `message` is empty or whitespace.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Empty message
+        "401":
+          description: Not authenticated.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Unauthorized
+        "503":
+          description: |
+            AI chat unavailable — either `GROQ_API_KEY` is not set, or the
+            `ai_chat_enabled` system setting is `false`.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: AI chat is currently disabled.
+
+  /stripe/payment-intent:
+    post:
+      summary: Create a Stripe PaymentIntent for a trip
+      description: |
+        Creates a Stripe PaymentIntent for the fare of a `completed` or `payment_pending`
+        trip. If the trip is `completed` it is automatically transitioned to
+        `payment_pending`.
+
+        Returns the `clientSecret` needed to confirm the payment with Stripe.js on the
+        client. The amount is charged in USD (ETB support pending Stripe account approval).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tripId]
+              properties:
+                tripId:
+                  type: string
+                  format: uuid
+                  example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      responses:
+        "200":
+          description: PaymentIntent created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clientSecret:
+                    type: string
+                    description: Stripe client secret for use with `stripe.confirmPayment()`.
+                    example: "pi_3OZvFQ2eZvKYlo2C1234567_secret_abcdefgh"
+                  total:
+                    type: number
+                    description: Fare amount used as the PaymentIntent amount.
+                    example: 45.00
+        "400":
+          description: Trip status is not `completed` or `payment_pending`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Trip cannot be paid
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Trip not found or belongs to a different user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Forbidden
+        "500":
+          description: Stripe API error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /webhooks/stripe:
+    post:
+      summary: Stripe webhook receiver
+      description: |
+        Receives Stripe webhook events and verifies the `stripe-signature` header.
+
+        **Authentication:** None — this endpoint is public but protected by Stripe's
+        HMAC signature scheme. Requests without a valid signature are rejected with 400.
+
+        **Handled events:**
+        - `payment_intent.succeeded` — inserts a payment record, marks the trip as
+          `paid`, and sends the user an in-app notification.
+      security: []
+      parameters:
+        - in: header
+          name: stripe-signature
+          required: true
+          schema:
+            type: string
+          description: |
+            HMAC signature computed by Stripe using `STRIPE_WEBHOOK_SECRET`.
+            Format: `t=<timestamp>,v1=<signature>,...`
+      requestBody:
+        required: true
+        description: |
+          Raw Stripe Event payload. The body **must not be pre-parsed** — signature
+          verification requires the original raw bytes.
+        content:
+          application/json:
+            schema:
+              type: object
+              description: See Stripe Event documentation for the full schema.
+              properties:
+                type:
+                  type: string
+                  example: payment_intent.succeeded
+                data:
+                  type: object
+      responses:
+        "200":
+          description: Event received and processed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+        "400":
+          description: Stripe signature verification failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Webhook signature verification failed
+
+  /trip/end:
+    post:
+      summary: End an active trip
+      description: |
+        Marks an `active` trip as `completed`, sets `ended_at` to the current time,
+        and sends the user an in-app notification naming the origin and destination
+        terminals.
+
+        After a successful call the trip is ready for payment via `/payment/cash`
+        or `/stripe/payment-intent`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tripId]
+              properties:
+                tripId:
+                  type: string
+                  format: uuid
+                  example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      responses:
+        "200":
+          description: Trip ended successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        "400":
+          description: Trip is not in `active` status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Trip is not active
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Trip not found or belongs to a different user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Forbidden
+
+  /payment/cash:
+    post:
+      summary: Record a cash payment for a trip
+      description: |
+        Records a cash payment for a `completed` or `payment_pending` trip.
+        Inserts a payment record (`currency: ETB`, `payment_method: cash`),
+        marks the trip as `paid`, and sends the user a confirmation notification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tripId]
+              properties:
+                tripId:
+                  type: string
+                  format: uuid
+                  example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      responses:
+        "200":
+          description: Cash payment recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        "400":
+          description: Trip status is not `completed` or `payment_pending`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Trip cannot be paid
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Trip not found or belongs to a different user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Forbidden
+
+  /user/export-data:
+    get:
+      summary: Export all user data as a downloadable JSON file
+      description: |
+        Returns a JSON file containing the authenticated user's full profile,
+        complete trip history, and payment history.
+
+        The `Content-Disposition: attachment` header causes browsers to download
+        the file rather than render it inline.
+      responses:
+        "200":
+          description: Data export file.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="taxiflow-data-a1b2c3d4.json"'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exported_at:
+                    type: string
+                    format: date-time
+                  account:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      email:
+                        type: string
+                        format: email
+                      email_confirmed:
+                        type: boolean
+                      created_at:
+                        type: string
+                        format: date-time
+                      full_name:
+                        type: string
+                        nullable: true
+                      phone:
+                        type: string
+                        nullable: true
+                      role:
+                        type: string
+                        enum: [user, admin, super_admin]
+                      home_address:
+                        type: string
+                        nullable: true
+                      work_address:
+                        type: string
+                        nullable: true
+                      language_pref:
+                        type: string
+                        nullable: true
+                  trips:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                          enum: [active, completed, payment_pending, paid]
+                        fare_amount:
+                          type: number
+                          example: 45.00
+                        started_at:
+                          type: string
+                          format: date-time
+                        ended_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        start_terminal_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        end_terminal_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                  payments:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        amount:
+                          type: number
+                          example: 45.00
+                        currency:
+                          type: string
+                          example: ETB
+                        status:
+                          type: string
+                          example: succeeded
+                        payment_method:
+                          type: string
+                          enum: [cash, card]
+                        paid_at:
+                          type: string
+                          format: date-time
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
