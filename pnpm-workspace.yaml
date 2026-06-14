@@ -1,5 +1,10 @@
 allowBuilds:
+  '@scarf/scarf': false
+  '@tree-sitter-grammars/tree-sitter-yaml': false
   core-js: false
+  core-js-pure: false
   msw: true
   sharp: true
+  tree-sitter: false
+  tree-sitter-json: false
   unrs-resolver: true
